@@ -17,5 +17,7 @@ class MountingService:
 
         # Find mounts to update
 
+        # Log any failed mounts
+        
         # Return status
         pass
