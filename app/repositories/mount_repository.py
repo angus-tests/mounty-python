@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 
 from pyfstab import Fstab
@@ -13,8 +14,13 @@ class MountRepositoryInterface(ABC):
     """
 
     @abstractmethod
-    def get_mounts(self) -> list[Mount]:
-        """Fetch a list of mounts to work with"""
+    def get_desired_mounts(self) -> list[Mount]:
+        """Fetch a list of mounts we want on the system"""
+        pass
+
+    @abstractmethod
+    def get_current_mounts(self) -> list[Mount]:
+        """Fetch a list of mounts currently on the system"""
         pass
 
     @abstractmethod
@@ -36,7 +42,7 @@ class MountRepository(MountRepositoryInterface):
     def __init__(self, config_manager):
         self.config_manager = config_manager
 
-    def get_mounts(self) -> list[Mount]:
+    def get_current_mounts(self) -> list[Mount]:
         """
         Open the fstab file and read in all the mounts
         that match our regex.
@@ -53,10 +59,28 @@ class MountRepository(MountRepositoryInterface):
 
         # Get the mounts that start with /shares
         return [
-            Mount(entry.dir, entry.device, MountType.from_str(entry.type))  # TODO test this
+            Mount(entry.dir, entry.device, MountType.from_str(entry.type))
             for entry in fstab.entries
             if entry.dir.startswith("/shares")
         ]
+
+    def get_desired_mounts(self) -> list[Mount]:
+        """
+        Read in the mounts from the specified json file
+        """
+        with open(self.config_manager.get_config("DESIRED_MOUNTS_FILE"), "r") as f:
+            mounts_data = json.load(f)
+
+        mounts = [
+            Mount(
+                mount["mount_path"],
+                mount["actual_path"],
+                MountType.from_str(mount["mount_type"]),
+            )
+            for mount in mounts_data
+        ]
+
+        return mounts
 
     def mount(self, mount: Mount):
         # TODO implement

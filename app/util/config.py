@@ -24,7 +24,8 @@ class ConfigManager:
         self.add_config('LINUX_SSH_LOCATION', getenv('LINUX_SSH_LOCATION'))
         self.add_config('LINUX_SSH_USER', getenv('LINUX_SSH_USER'))
         self.add_config('CIFS_FILE_LOCATION', getenv('CIFS_FILE_LOCATION'))
-        self.add_config('FSTAB_LOCATION', "/etc/fstab")
+        self.add_config('DESIRED_MOUNTS_FILE', getenv('DESIRED_MOUNTS_FILE', 'mounts.json'))
+        self.add_config('FSTAB_LOCATION', '/etc/fstab')
 
     def __str__(self):
         table = [[key, value] for key, value in self.config.items()]
