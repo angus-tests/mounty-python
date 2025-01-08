@@ -23,19 +23,33 @@ class MountingService:
 
         # Find mounts to add
         mounts_to_add = self._find_mounts_to_add(desired_mounts, current_mounts)
+        LogFacade.log_table_info(
+            "Mounts to add",
+            ["Mount Path", "Actual Path"],
+            [[mount.mount_path, mount.actual_path] for mount in mounts_to_add])
+        failed_to_add = self._add_mounts(mounts_to_add)
 
         # Find mounts to remove
         mounts_to_remove = self._find_mounts_to_remove(desired_mounts, current_mounts)
+        LogFacade.log_table_info(
+            "Mounts to remove",
+            ["Mount Path", "Actual Path"],
+            [[mount.mount_path, mount.actual_path] for mount in mounts_to_remove])
+        failed_to_remove = self._remove_mounts(mounts_to_remove)
 
         # Find mounts to update
         mounts_to_update = self._find_mounts_to_update(desired_mounts, current_mounts)
+        LogFacade.log_table_info(
+            "Mounts to update",
+            ["Mount Path", "Actual Path"],
+            [[mount.mount_path, mount.actual_path] for mount in mounts_to_update])
 
         # Log any failed mounts
 
         # Return status
         pass
 
-    def _mount(self, mount: Mount):
+    def _mount(self, mount: Mount) -> bool:
         """
         Mount a directory
         """
@@ -44,8 +58,10 @@ class MountingService:
             self.mount_repository.mount(mount)
         except MountException as e:
             LogFacade.error(f"Failed to mount {mount.mount_path} -> {mount.actual_path}: {e}")
+            return False
+        return True
 
-    def _unmount(self, mount: Mount):
+    def _unmount(self, mount: Mount) -> bool:
         """
         Unmount a directory
         """
@@ -54,6 +70,58 @@ class MountingService:
             self.mount_repository.unmount(mount)
         except UnmountException as e:
             LogFacade.error(f"Failed to unmount {mount.mount_path}: {e}")
+            return False
+        return True
+
+    def _update_mount(self, mount: Mount) -> bool:
+        """
+        Update an existing mount
+        this will use the mount path to remove the mount,
+        then remount the mount with the new details
+        """
+        LogFacade.info(
+            f"Updating {mount.mount_path}")
+        try:
+            self.mount_repository.unmount(mount)
+            self.mount_repository.mount(mount)
+        except MountException as e:
+            LogFacade.error(
+                f"Failed to update {mount.mount_path}: {e}")
+            return False
+        return True
+
+    def _remove_mounts(self, mounts: list[Mount]) -> list[Mount]:
+        """
+        Remove a list of mounts
+        :return: A list of mounts that failed to be removed
+        """
+        failed_mounts = []
+        for mount in mounts:
+            if not self._unmount(mount):
+                failed_mounts.append(mount)
+        return failed_mounts
+
+    def _add_mounts(self, mounts: list[Mount]) -> list[Mount]:
+        """
+        Add a list of mounts
+        :return: A list of mounts that failed to be added
+        """
+        failed_mounts = []
+        for mount in mounts:
+            if not self._mount(mount):
+                failed_mounts.append(mount)
+        return failed_mounts
+
+    def _update_mounts(self, mounts: list[Mount]) -> list[Mount]:
+        """
+        Update a list of mounts
+        :return: A list of mounts that failed to be updated
+        """
+        failed_mounts = []
+        for mount in mounts:
+            if not self._unmount(mount):
+                failed_mounts.append(mount)
+        return failed_mounts
 
     def _find_mounts_to_remove(self, desired_mounts: list[Mount], current_mounts: list[Mount]) -> list[Mount]:
         """
@@ -88,11 +156,11 @@ class MountingService:
         Look for mounts we need to update
         """
 
-        # Make a list of the local mount paths for the desired mounts
-        desired_mount_paths = [mount.mount_path for mount in desired_mounts]
+        mounts_to_update = []
 
-        # Make a list of the local mount paths for the current mounts
-        current_mount_paths = [mount.mount_path for mount in current_mounts]
-
-        # Any mounts that are in both the desired mounts and the current mounts can be updated
-        return [mount for mount in desired_mount_paths if mount in current_mount_paths]
+        for desired_mount in desired_mounts:
+            for current_mount in current_mounts:
+                # A mount is considered to need updating if the mount path is the same but the actual path or mount type is different
+                if desired_mount.mount_path == current_mount.mount_path and (desired_mount.actual_path != current_mount.actual_path or desired_mount.mount_type != current_mount.mount_type):
+                    mounts_to_update.append(desired_mount)
+        return mounts_to_update
