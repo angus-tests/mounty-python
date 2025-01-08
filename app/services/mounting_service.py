@@ -144,41 +144,40 @@ class MountingService:
     def _find_mounts_to_remove(self, desired_mounts: list[Mount], current_mounts: list[Mount]) -> list[Mount]:
         """
         Look for mounts on the system we can remove
+        A mount is considered to be removable if it is not in the desired mounts
+        but is in the current mounts
         """
 
         # Make a list of the local mount paths for the desired mounts
         desired_mount_paths = [mount.mount_path for mount in desired_mounts]
 
-        # Make a list of the local mount paths for the current mounts
-        current_mount_paths = [mount.mount_path for mount in current_mounts]
-
         # Any mounts that are in the current mounts but not in the desired mounts can be removed
-        return [mount for mount in current_mount_paths if mount not in desired_mount_paths]
+        return [mount for mount in current_mounts if mount.mount_path not in desired_mount_paths]
 
     def _find_mounts_to_add(self, desired_mounts: list[Mount], current_mounts: list[Mount]) -> list[Mount]:
         """
         Look for mounts we need to add
+        A mount is considered to need adding if the mount path is
+        not in the current mounts
         """
-
-        # Make a list of the local mount paths for the desired mounts
-        desired_mount_paths = [mount.mount_path for mount in desired_mounts]
 
         # Make a list of the local mount paths for the current mounts
         current_mount_paths = [mount.mount_path for mount in current_mounts]
 
         # Any mounts that are in the desired mounts but not in the current mounts can be added
-        return [mount for mount in desired_mount_paths if mount not in current_mount_paths]
+        return [mount for mount in desired_mounts if mount.mount_path not in current_mount_paths]
 
     def _find_mounts_to_update(self, desired_mounts: list[Mount], current_mounts: list[Mount]) -> list[Mount]:
         """
         Look for mounts we need to update
+        A mount is considered to need updating if the mount path is
+        the same but the actual path or mount type is different
         """
 
         mounts_to_update = []
 
         for desired_mount in desired_mounts:
             for current_mount in current_mounts:
-                # A mount is considered to need updating if the mount path is the same but the actual path or mount type is different
                 if desired_mount.mount_path == current_mount.mount_path and (desired_mount.actual_path != current_mount.actual_path or desired_mount.mount_type != current_mount.mount_type):
                     mounts_to_update.append(desired_mount)
         return mounts_to_update
