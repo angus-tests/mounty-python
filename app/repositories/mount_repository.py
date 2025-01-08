@@ -25,12 +25,18 @@ class MountRepositoryInterface(ABC):
 
     @abstractmethod
     def mount(self, mount: Mount):
-        """mount a mount to the system"""
+        """
+        mount a mount to the system
+        :param mount: the mount to mount on the system
+        """
         pass
 
     @abstractmethod
-    def unmount(self, mount: Mount):
-        """unmount a mount from the system"""
+    def unmount(self, mount_path: str):
+        """
+        unmount a mount from the system
+        :param mount_path: the path of the mount to unmount on the system
+        """
         pass
 
 
@@ -86,7 +92,7 @@ class MountRepository(MountRepositoryInterface):
         # TODO implement
         pass
 
-    def unmount(self, mount: Mount):
+    def unmount(self, mount_path: str):
         # TODO implement
         pass
 

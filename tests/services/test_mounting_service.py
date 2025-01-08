@@ -70,14 +70,13 @@ class TestMountingServiceRun(unittest.TestCase):
         self.assertEqual(1, mock_repository.unmount.call_count)
 
         mock_repository.unmount.assert_called_with(
-            Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere")
+            "/shares/test2"
         )
 
     def test_update_mounts(self):
         """
         This test simulates a mounts.json file with a single mount in it
-        and two mounts currently on the system (including the one in the mounts.json file).
-        The mount in the mounts.json file has a different actual path to the one currently on the system.
+        a single mount currently on the system (different actual path).
         """
 
         # Set up the mock repository
@@ -87,7 +86,6 @@ class TestMountingServiceRun(unittest.TestCase):
             ],
             current_mounts=[
                 Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
-                Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
             ]
         )
 
@@ -99,18 +97,61 @@ class TestMountingServiceRun(unittest.TestCase):
 
         # Assertions
         self.assertEqual(1, mock_repository.mount.call_count)
-        self.assertEqual(2, mock_repository.unmount.call_count)
+        self.assertEqual(1, mock_repository.unmount.call_count)
 
         # Assert unmount was called with correct mounts
-        mock_repository.mount.assert_has_calls([
-            call(Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere")),
-            call(Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere")),
-        ])
+        mock_repository.unmount.assert_called_with(
+            "/shares/test"
+        )
 
         # Assert mount was called with correct mount
         mock_repository.mount.assert_called_with(
             Mount(mount_path="/shares/test", actual_path="//SomeServer/SomewhereElse")
         )
+
+    def test_add_remove_and_update(self):
+        """
+        This test simulates a mounts.json file with two mounts in it
+        and two mounts currently on the system (one of which is in the mounts.json file).
+
+        The test should:
+        - Add the new mount
+        - Remove the old mount
+        - Update the mount
+        """
+        # Set up the mock repository
+        mock_repository = self.setUpMockRepository(
+            desired_mounts=[
+                Mount(mount_path="/shares/test", actual_path="//SomeServer/SomewhereElse"),
+                Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
+            ],
+            current_mounts=[
+                Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
+                Mount(mount_path="/shares/test3", actual_path="//AnotherServer/Somewhere"),
+            ]
+        )
+
+        # Create the mounting service
+        mounting_service = MountingService(mock_repository)
+
+        # Run the mounting service
+        mounting_service.run()
+
+        # Assertions
+        self.assertEqual(2, mock_repository.mount.call_count)
+        self.assertEqual(2, mock_repository.unmount.call_count)
+
+        # Assert unmount was called with correct mounts
+        mock_repository.unmount.assert_has_calls([
+            call("/shares/test"),
+            call("/shares/test3")
+        ], any_order=True)
+
+        # Assert mount was called with correct mounts
+        mock_repository.mount.assert_has_calls([
+            call(Mount(mount_path="/shares/test", actual_path="//SomeServer/SomewhereElse")),
+            call(Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere")),
+        ], any_order=True)
 
 
 if __name__ == '__main__':

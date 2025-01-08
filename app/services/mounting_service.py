@@ -85,7 +85,7 @@ class MountingService:
         """
         LogFacade.info(f"Unmounting {mount.mount_path}")
         try:
-            self.mount_repository.unmount(mount)
+            self.mount_repository.unmount(mount.mount_path)
         except UnmountException as e:
             LogFacade.error(f"Failed to unmount {mount.mount_path}: {e}")
             return False
@@ -137,7 +137,7 @@ class MountingService:
         """
         failed_mounts = []
         for mount in mounts:
-            if not self._unmount(mount):
+            if not self._unmount(mount) or not self._mount(mount):
                 failed_mounts.append(mount)
         return failed_mounts
 
