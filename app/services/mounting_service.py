@@ -43,11 +43,29 @@ class MountingService:
             "Mounts to update",
             ["Mount Path", "Actual Path"],
             [[mount.mount_path, mount.actual_path] for mount in mounts_to_update])
-
+        failed_to_update = self._update_mounts(mounts_to_update)
+        
         # Log any failed mounts
+        if failed_to_add:
+            LogFacade.log_table_error(
+                "Failed to add mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in failed_to_add])
 
-        # Return status
-        pass
+        if failed_to_remove:
+            LogFacade.log_table_error(
+                "Failed to remove mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in failed_to_remove])
+
+        if failed_to_update:
+            LogFacade.log_table_error(
+                "Failed to update mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in failed_to_update])
+
+        # Return status (True if all mounts were successful)
+        return not failed_to_add and not failed_to_remove and not failed_to_update
 
     def _mount(self, mount: Mount) -> bool:
         """
