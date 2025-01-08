@@ -85,47 +85,6 @@ class LogFacade:
         return LogFacade._loggers[logger_name]
 
     @staticmethod
-    def log_mounts(level, title: str, message: str, items: list[str]):
-        """
-        Function to log messages with configurable level, title, message, and content.
-
-        :param level: Logging level (e.g., logging.INFO, logging.DEBUG, etc.)
-        :param title: The title of the log message.
-        :param message: The message to display in the header.
-        :param items: The list of items to display in the log content.
-        """
-        # Format the header
-        header = f"\n\n================== {title} ==================\n"
-        header += "+-------------------------------------------+\n"
-        header += f"| {message:<40} |\n"
-        header += "+-------------------------------------------+\n"
-
-        # Check if the items list is empty and set content accordingly
-        if not items:
-            content = f"| {'EMPTY':<40} |"
-        else:
-            content = "\n".join(f"- {item:<25} " for item in items)
-
-        footer = "\n+-------------------------------------------\n+"
-
-        # Combine header, content, and footer
-        full_message = header + content + footer
-
-        # Log the message with the specified level
-        if level == logging.INFO:
-            LogFacade.info(full_message)
-        elif level == logging.DEBUG:
-            logging.debug(full_message)
-        elif level == logging.WARNING:
-            LogFacade.warning(full_message)
-        elif level == logging.ERROR:
-            LogFacade.error(full_message)
-        elif level == logging.CRITICAL:
-            LogFacade.critical(full_message)
-        else:
-            LogFacade.log(level, full_message)
-
-    @staticmethod
     def log_table(level, title: str, headers: list[str], table: list[list[str]]):
 
         # Format the table
