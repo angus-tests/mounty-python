@@ -46,9 +46,10 @@ class TestMountingServiceRun(unittest.TestCase):
         mounting_service = MountingService(mock_repository)
 
         # Run the mounting service
-        mounting_service.run()
+        result = mounting_service.run()
 
         # Assertions
+        self.assertTrue(result)
         self.assertEqual(2,  mock_repository.mount.call_count)
         self.assertEqual(0, mock_repository.unmount.call_count)
 
@@ -72,9 +73,10 @@ class TestMountingServiceRun(unittest.TestCase):
         mounting_service = MountingService(mock_repository)
 
         # Run the mounting service
-        mounting_service.run()
+        result = mounting_service.run()
 
         # Assertions
+        self.assertTrue(result)
         self.assertEqual(0, mock_repository.mount.call_count)
         self.assertEqual(1, mock_repository.unmount.call_count)
 
@@ -102,9 +104,10 @@ class TestMountingServiceRun(unittest.TestCase):
         mounting_service = MountingService(mock_repository)
 
         # Run the mounting service
-        mounting_service.run()
+        result = mounting_service.run()
 
         # Assertions
+        self.assertTrue(result)
         self.assertEqual(1, mock_repository.mount.call_count)
         self.assertEqual(1, mock_repository.unmount.call_count)
 
@@ -144,9 +147,10 @@ class TestMountingServiceRun(unittest.TestCase):
         mounting_service = MountingService(mock_repository)
 
         # Run the mounting service
-        mounting_service.run()
+        result = mounting_service.run()
 
         # Assertions
+        self.assertTrue(result)
         self.assertEqual(2, mock_repository.mount.call_count)
         self.assertEqual(2, mock_repository.unmount.call_count)
 
@@ -201,6 +205,34 @@ class TestMountingServiceRun(unittest.TestCase):
             current_mounts=[
                 Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
                 Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
+            ]
+        )
+
+        # Create the mounting service
+        mounting_service = MountingService(mock_repository)
+
+        # Set up the mock repository to raise an exception when unmounting
+        mock_repository.unmount.side_effect = UnmountException("Failed to unmount for some reason")
+
+        # Run the mounting service
+        result = mounting_service.run()
+
+        # Assertions
+        self.assertFalse(result)
+        self.assertEqual(0, mock_repository.mount.call_count)
+        self.assertEqual(1, mock_repository.unmount.call_count)
+
+    def test_update_mounts_with_exception(self):
+        """
+        simulate an exception in the mount repository when updating a mount
+        """
+        # Set up the mock repository
+        mock_repository = setup_mock_repository(
+            desired_mounts=[
+                Mount(mount_path="/shares/test", actual_path="//SomeServer/SomewhereElse"),
+            ],
+            current_mounts=[
+                Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
             ]
         )
 
