@@ -1,3 +1,6 @@
+from app.exceptions.mount_exception import MountException
+from app.exceptions.unmount_exception import UnmountException
+from app.facades.log_facade import LogFacade
 from app.models.mount import Mount
 from app.repositories.mount_repository import MountRepositoryInterface
 
@@ -31,6 +34,26 @@ class MountingService:
 
         # Return status
         pass
+
+    def _mount(self, mount: Mount):
+        """
+        Mount a directory
+        """
+        LogFacade.info(f"Mounting {mount.mount_path} -> {mount.actual_path}")
+        try:
+            self.mount_repository.mount(mount)
+        except MountException as e:
+            LogFacade.error(f"Failed to mount {mount.mount_path} -> {mount.actual_path}: {e}")
+
+    def _unmount(self, mount: Mount):
+        """
+        Unmount a directory
+        """
+        LogFacade.info(f"Unmounting {mount.mount_path}")
+        try:
+            self.mount_repository.unmount(mount)
+        except UnmountException as e:
+            LogFacade.error(f"Failed to unmount {mount.mount_path}: {e}")
 
     def _find_mounts_to_remove(self, desired_mounts: list[Mount], current_mounts: list[Mount]) -> list[Mount]:
         """
