@@ -67,6 +67,18 @@ class MountingService:
         # Return status (True if all mounts were successful)
         return not failed_to_add and not failed_to_remove and not failed_to_update
 
+    def unmount_all(self) -> bool:
+        """
+        Unmount all mounts from the system
+        """
+        LogFacade.warning("Unmounting all mounts")
+        try:
+            self.mount_repository.unmount_all()
+        except UnmountException as e:
+            LogFacade.error(f"Failed to unmount all mounts: {e}")
+            return False
+        return True
+
     def _mount(self, mount: Mount) -> bool:
         """
         Mount a directory
@@ -110,7 +122,7 @@ class MountingService:
 
     def _remove_mounts(self, mounts: list[Mount]) -> list[Mount]:
         """
-        Remove a list of mounts
+        Remove a list of mounts from the system
         :return: A list of mounts that failed to be removed
         """
         failed_mounts = []
@@ -121,7 +133,7 @@ class MountingService:
 
     def _add_mounts(self, mounts: list[Mount]) -> list[Mount]:
         """
-        Add a list of mounts
+        Add a list of mounts to the system
         :return: A list of mounts that failed to be added
         """
         failed_mounts = []

@@ -6,18 +6,20 @@ from app.repositories.mount_repository import MountRepositoryInterface
 from app.services.mounting_service import MountingService
 
 
-class TestMountingServiceRun(unittest.TestCase):
+def setup_mock_repository(desired_mounts=None, current_mounts=None):
+    """
+    Helper method to set up a mock repository with the specified desired and current mounts.
+    """
+    mock_repository = MagicMock(spec=MountRepositoryInterface)
+    mock_repository.get_desired_mounts.return_value = desired_mounts or []
+    mock_repository.get_current_mounts.return_value = current_mounts or []
+    mock_repository.mount.return_value = None
+    mock_repository.unmount.return_value = None
+    mock_repository.unmount_all.return_value = None
+    return mock_repository
 
-    def setUpMockRepository(self, desired_mounts=None, current_mounts=None):
-        """
-        Helper method to set up a mock repository with the specified desired and current mounts.
-        """
-        mock_repository = MagicMock(spec=MountRepositoryInterface)
-        mock_repository.get_desired_mounts.return_value = desired_mounts or []
-        mock_repository.get_current_mounts.return_value = current_mounts or []
-        mock_repository.mount.return_value = None
-        mock_repository.unmount.return_value = None
-        return mock_repository
+
+class TestMountingServiceRun(unittest.TestCase):
 
     def test_add_new_mounts(self):
         """
@@ -25,7 +27,7 @@ class TestMountingServiceRun(unittest.TestCase):
         and no mounts currently on the system.
         """
         # Set up the mock repository
-        mock_repository = self.setUpMockRepository(
+        mock_repository = setup_mock_repository(
             desired_mounts=[
                 Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
                 Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
@@ -49,7 +51,7 @@ class TestMountingServiceRun(unittest.TestCase):
         and two mounts currently on the system (including the one in the mounts.json file).
         """
         # Set up the mock repository
-        mock_repository = self.setUpMockRepository(
+        mock_repository = setup_mock_repository(
             desired_mounts=[
                 Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
             ],
@@ -80,7 +82,7 @@ class TestMountingServiceRun(unittest.TestCase):
         """
 
         # Set up the mock repository
-        mock_repository = self.setUpMockRepository(
+        mock_repository = setup_mock_repository(
             desired_mounts=[
                 Mount(mount_path="/shares/test", actual_path="//SomeServer/SomewhereElse"),
             ],
@@ -120,7 +122,7 @@ class TestMountingServiceRun(unittest.TestCase):
         - Update the mount
         """
         # Set up the mock repository
-        mock_repository = self.setUpMockRepository(
+        mock_repository = setup_mock_repository(
             desired_mounts=[
                 Mount(mount_path="/shares/test", actual_path="//SomeServer/SomewhereElse"),
                 Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
@@ -152,6 +154,32 @@ class TestMountingServiceRun(unittest.TestCase):
             call(Mount(mount_path="/shares/test", actual_path="//SomeServer/SomewhereElse")),
             call(Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere")),
         ], any_order=True)
+
+
+class TestMountingServiceUnmountAll(unittest.TestCase):
+    
+    def test_unmount_all(self):
+        """
+        This test simulates a mounts.json file with two mounts in it
+        and two mounts currently on the system.
+        """
+        # Set up the mock repository
+        mock_repository = setup_mock_repository(
+            desired_mounts=[],
+            current_mounts=[
+                Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
+                Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
+            ]
+        )
+
+        # Create the mounting service
+        mounting_service = MountingService(mock_repository)
+
+        # Run the mounting service
+        mounting_service.unmount_all()
+
+        # Assertions
+        self.assertEqual(1, mock_repository.unmount_all.call_count)
 
 
 if __name__ == '__main__':
