@@ -48,19 +48,19 @@ class MountingService:
         # Log any failed mounts
         if failed_to_add:
             LogFacade.log_table_error(
-                "Failed to add mounts",
+                "Failed to add these mounts",
                 ["Mount Path", "Actual Path"],
                 [[mount.mount_path, mount.actual_path] for mount in failed_to_add])
 
         if failed_to_remove:
             LogFacade.log_table_error(
-                "Failed to remove mounts",
+                "Failed to remove these mounts",
                 ["Mount Path", "Actual Path"],
                 [[mount.mount_path, mount.actual_path] for mount in failed_to_remove])
 
         if failed_to_update:
             LogFacade.log_table_error(
-                "Failed to update mounts",
+                "Failed to update these mounts",
                 ["Mount Path", "Actual Path"],
                 [[mount.mount_path, mount.actual_path] for mount in failed_to_update])
 
@@ -71,7 +71,7 @@ class MountingService:
         """
         Unmount all mounts from the system
         """
-        LogFacade.warning("Unmounting all mounts")
+        LogFacade.info("Unmounting all mounts")
         try:
             self.mount_repository.unmount_all()
         except UnmountException as e:
@@ -112,9 +112,9 @@ class MountingService:
         LogFacade.info(
             f"Updating {mount.mount_path}")
         try:
-            self.mount_repository.unmount(mount)
+            self.mount_repository.unmount(mount.mount_path)
             self.mount_repository.mount(mount)
-        except MountException as e:
+        except (MountException, UnmountException) as e:
             LogFacade.error(
                 f"Failed to update {mount.mount_path}: {e}")
             return False

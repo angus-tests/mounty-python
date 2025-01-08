@@ -1,6 +1,9 @@
 import unittest
 from unittest.mock import MagicMock, call
 
+from app.exceptions.mount_exception import MountException
+from app.exceptions.unmount_exception import UnmountException
+from app.facades.log_facade import LogFacade
 from app.models.mount import Mount
 from app.repositories.mount_repository import MountRepositoryInterface
 from app.services.mounting_service import MountingService
@@ -20,6 +23,10 @@ def setup_mock_repository(desired_mounts=None, current_mounts=None):
 
 
 class TestMountingServiceRun(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        LogFacade.disable_logging()
 
     def test_add_new_mounts(self):
         """
@@ -154,6 +161,62 @@ class TestMountingServiceRun(unittest.TestCase):
             call(Mount(mount_path="/shares/test", actual_path="//SomeServer/SomewhereElse")),
             call(Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere")),
         ], any_order=True)
+
+    def test_add_new_mounts_with_exception(self):
+        """
+        simulate an exception in the mount repository when adding a mount
+        """
+        # Set up the mock repository
+        mock_repository = setup_mock_repository(
+            desired_mounts=[
+                Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
+                Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
+            ],
+            current_mounts=[]
+        )
+
+        # Create the mounting service
+        mounting_service = MountingService(mock_repository)
+
+        # Set up the mock repository to raise an exception when mounting
+        mock_repository.mount.side_effect = MountException("Failed to mount for some reason")
+
+        # Run the mounting service
+        result = mounting_service.run()
+
+        # Assertions
+        self.assertFalse(result)
+        self.assertEqual(2, mock_repository.mount.call_count)
+        self.assertEqual(0, mock_repository.unmount.call_count)
+
+    def test_remove_old_mounts_with_exception(self):
+        """
+        simulate an exception in the mount repository when removing a mount
+        """
+        # Set up the mock repository
+        mock_repository = setup_mock_repository(
+            desired_mounts=[
+                Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
+            ],
+            current_mounts=[
+                Mount(mount_path="/shares/test", actual_path="//SomeServer/Somewhere"),
+                Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
+            ]
+        )
+
+        # Create the mounting service
+        mounting_service = MountingService(mock_repository)
+
+        # Set up the mock repository to raise an exception when unmounting
+        mock_repository.unmount.side_effect = UnmountException("Failed to unmount for some reason")
+
+        # Run the mounting service
+        result = mounting_service.run()
+
+        # Assertions
+        self.assertFalse(result)
+        self.assertEqual(0, mock_repository.mount.call_count)
+        self.assertEqual(1, mock_repository.unmount.call_count)
 
 
 class TestMountingServiceUnmountAll(unittest.TestCase):

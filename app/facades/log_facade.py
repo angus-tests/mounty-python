@@ -14,10 +14,24 @@ class LogFacade:
     }
 
     @staticmethod
-    def configure_logger(level=logging.INFO):
+    def disable_logging():
+        """
+        Disable all logging below CRITICAL level.
+        """
+        LogFacade.configure_logger(level=logging.CRITICAL, null_handler=True)
+
+    @staticmethod
+    def configure_logger(level=logging.INFO, null_handler=False):
         """
         Set up a basic logging configuration with a consistent format and default level.
         """
+
+        if null_handler:
+            # Set a null handler to prevent any logging from being output
+            null_logger = logging.getLogger()
+            null_logger.setLevel(logging.CRITICAL)
+            null_logger.addHandler(logging.NullHandler())
+            return
 
         # Set up a formatter
         formatter = logging.Formatter(
@@ -99,7 +113,7 @@ class LogFacade:
 
     @staticmethod
     def log_table_error(title: str, headers: list[str], table: list[list[str]]):
-        LogFacade.log_table(logging.ERROR, title, headers, table)
+        LogFacade.log_table(logging.CRITICAL, title, headers, table)
 
     @staticmethod
     def format_table(title: str, headers: list[str], table: list[list[str]]) -> str:
