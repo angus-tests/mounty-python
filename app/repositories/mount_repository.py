@@ -8,7 +8,7 @@ from pyfstab import Fstab, Entry
 from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
-from app.facades.log_facade import LogFacade
+from app.factories.mount_factory import MountFactory
 from app.models.mount import Mount
 
 
@@ -78,7 +78,7 @@ class MountRepository(MountRepositoryInterface):
 
         # Get the mounts that start with the mount prefix
         return [
-            Mount(entry.dir, entry.device, MountType.from_str(entry.type))
+            MountFactory.create_from_fstab_entry(entry)
             for entry in fstab.entries
             if entry.dir.startswith(self.mount_prefix)
         ]
@@ -91,11 +91,7 @@ class MountRepository(MountRepositoryInterface):
             mounts_data = json.load(f)
 
         mounts = [
-            Mount(
-                mount["mount_path"],
-                mount["actual_path"],
-                MountType.from_str(mount["mount_type"]),
-            )
+            MountFactory.create_from_json(mount)
             for mount in mounts_data
         ]
 
