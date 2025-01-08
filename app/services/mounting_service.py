@@ -44,7 +44,7 @@ class MountingService:
             ["Mount Path", "Actual Path"],
             [[mount.mount_path, mount.actual_path] for mount in mounts_to_update])
         failed_to_update = self._update_mounts(mounts_to_update)
-        
+
         # Log any failed mounts
         if failed_to_add:
             LogFacade.log_table_error(

@@ -28,7 +28,15 @@ def main():
     mounting_service = MountingService(mount_repository)
 
     # Run the mounting service
-    mounting_service.run()
+    status = mounting_service.run()
+
+    # Return an exit code
+    if status:
+        LogFacade.info("Mounting service completed successfully")
+        exit(0)
+    else:
+        LogFacade.error("Mounting service failed")
+        exit(1)
 
 
 if __name__ == "__main__":
