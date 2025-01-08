@@ -1,9 +1,14 @@
 import json
+import os
+import subprocess
 from abc import ABC, abstractmethod
 
 from pyfstab import Fstab, Entry
 
 from app.enums.enums import MountType
+from app.exceptions.mount_exception import MountException
+from app.exceptions.unmount_exception import UnmountException
+from app.facades.log_facade import LogFacade
 from app.models.mount import Mount
 
 
@@ -97,12 +102,73 @@ class MountRepository(MountRepositoryInterface):
         return mounts
 
     def mount(self, mount: Mount):
-        # TODO implement
-        pass
+        """
+        Mount a mount to the system
+        """
+
+        # Create the mount point if it doesn't exist
+        if not os.path.exists(f"{mount.mount_path}"):
+            os.makedirs(mount.mount_path, exist_ok=True)
+
+        # In order for mounts to persist, we need to add the line to the /etc/fstab file
+        # Windows: <file system>       <dir>      <type> <options>
+        # Linux:   <Linux share>       <dir>      fuse.sshfs IdentityFile=/path/to/.ssh/id_rsa_linux,uid=1001,gid=5001
+
+        # Mount windows shares
+        if mount.mount_type == MountType.WINDOWS:
+
+            cifs_file_location = self.config_manager.get_config("CIFS_FILE_LOCATION")
+            self._make_mount_permanent(
+                mount.mount_path,
+                mount.actual_path,
+                "cifs",
+                f"credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto",
+            )
+
+        # Mount linux shares
+        elif mount.mount_type == MountType.LINUX:
+
+            # We need to use SSHFS to mount linux shares
+            linux_user = self.config_manager.get_config("LINUX_SSH_USER")
+            linux_ssh_location = self.config_manager.get_config("LINUX_SSH_LOCATION")
+            actual_path = f"{linux_user}@{mount.actual_path}"
+
+            self._make_mount_permanent(
+                mount.mount_path,
+                actual_path,
+                "fuse.sshfs",
+                f"IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto",
+            )
+        else:
+            raise MountException(f"Mount type {mount.mount_type} not supported")
+
+        # Call the mount command
+        result = subprocess.run(["sudo", "mount", mount.mount_path], capture_output=True)
+
+        # Check if the mount was successful
+        if result.returncode != 0:
+            raise MountException(result.stderr)
 
     def unmount(self, mount_path: str):
-        # TODO implement
-        pass
+        """
+        Unmount a mount from the system
+        :param mount_path: The path of the mount to unmount
+        """
+
+        # Remove from fstab
+        self._remove_permanent_mount(mount_path)
+
+        # Perform unmount
+        umount_result = subprocess.run(["umount", mount_path])
+
+        # Remove the mount point
+        rm_result = subprocess.run(["rm", "-rf", mount_path])
+
+        # Check if the unmount was successful
+        if umount_result.returncode != 0:
+            raise UnmountException(f"Umount error - {umount_result.stderr}")
+        if rm_result.returncode != 0:
+            raise UnmountException(f"Remove error - {rm_result.stderr}")
 
     def unmount_all(self):
         """
@@ -180,11 +246,11 @@ class MountRepository(MountRepositoryInterface):
         with open(fstab_location, "w") as f:
             f.write(formatted)
 
-    def _remove_permanent_mount(self, local_dir: str):
+    def _remove_permanent_mount(self, mount_path: str):
         """
         This function will remove a single
         directory from the fstab file
-        :param local_dir: The local mount path
+        :param mount_path: The local mount path
         """
 
         fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
@@ -194,7 +260,7 @@ class MountRepository(MountRepositoryInterface):
             fstab = Fstab().read_file(f)
 
         # Keep every other entry except the one we want to remove
-        fstab.entries = [entry for entry in fstab.entries if not entry.dir == local_dir]
+        fstab.entries = [entry for entry in fstab.entries if not entry.dir == mount_path]
 
         # Write our new fstab file
         formatted = str(fstab)
