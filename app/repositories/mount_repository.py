@@ -105,8 +105,29 @@ class MountRepository(MountRepositoryInterface):
         pass
 
     def unmount_all(self):
-        # TODO implement
-        pass
+        """
+        Unmount all mounts from the system
+        that start with our mount prefix and keep the rest
+        """
+
+        fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
+
+        # Read the file
+        with open(fstab_location, "r") as f:
+            fstab = Fstab().read_file(f)
+
+        # Unmount all mounts that start with the mount prefix and keep the rest
+        fstab_entries = []
+        for entry in fstab.entries:
+            if entry.dir.startswith(self.mount_prefix):
+                self.unmount(entry.dir)
+            else:
+                fstab_entries.append(entry)
+
+        # Write our new fstab file
+        formatted = str(fstab)
+        with open(fstab_location, "w") as f:
+            f.write(formatted)
 
     def _make_mount_permanent(
         self, local_dir, actual_dir, mount_type, options="auto", dump=0, fsck=0
