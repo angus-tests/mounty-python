@@ -2,6 +2,7 @@ import re
 import unittest
 from unittest.mock import MagicMock, mock_open, patch
 
+from app.exceptions.mount_exception import MountException
 from app.factories.mount_factory import FakeMountFactory
 from app.repositories.mount_config_repository import FstabRepository
 from app.util.config import ConfigManager
@@ -122,6 +123,24 @@ class TestStoreMountInformation(unittest.TestCase):
 
         # Assert the content was written correctly
         self.assertEqual(expected_formatted, actual_formatted)
+
+    def test_store_mount_information_unsupported_mount_type(self):
+        """
+        This test will simulate storing mounting information for an unsupported mount
+        in the fstab file
+        """
+
+        # Create our mount
+        mount = FakeMountFactory.standard_mount()
+
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Create a fstab repository
+        fstab_repository = FstabRepository(mock_config_manager)
+
+        # Store the mount information
+        with self.assertRaises(MountException):
+            fstab_repository.store_mount_information(mount)
 
 
 if __name__ == '__main__':

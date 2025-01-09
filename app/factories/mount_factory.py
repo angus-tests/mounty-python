@@ -35,3 +35,11 @@ class FakeMountFactory:
             actual_path=actual_path or "/mnt/linux",
             mount_type=MountType.LINUX
         )
+
+    @staticmethod
+    def standard_mount(mount_path: str = None, actual_path: str = None) -> Mount:
+        return Mount(
+            mount_path=mount_path or "/shares/standard",
+            actual_path=actual_path or "/mnt/standard",
+            mount_type=MountType.NONE
+        )
