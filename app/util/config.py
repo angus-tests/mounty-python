@@ -2,7 +2,6 @@ from os import getenv
 from pathlib import Path
 
 from dotenv import load_dotenv
-from tabulate import tabulate
 
 from app.facades.log_facade import LogFacade
 
@@ -27,7 +26,7 @@ class ConfigManager:
         self.add_config('LINUX_SSH_LOCATION', getenv('LINUX_SSH_LOCATION'))
         self.add_config('LINUX_SSH_USER', getenv('LINUX_SSH_USER'))
         self.add_config('CIFS_FILE_LOCATION', getenv('CIFS_FILE_LOCATION'))
-        self.add_config('DESIRED_MOUNTS_FILE', getenv('DESIRED_MOUNTS_FILE', 'mounts.json'))
+        self.add_config('DESIRED_MOUNTS_PATH', getenv('DESIRED_MOUNTS_FILE_PATH', 'mounts.json'))
         self.add_config('FSTAB_LOCATION', '/etc/fstab')
         self.add_config('PROJECT_FOLDER', self.project_folder)
         self.add_config('ENV_FILE_PATH', self.env_file_path)

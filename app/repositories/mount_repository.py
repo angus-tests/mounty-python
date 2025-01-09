@@ -88,7 +88,7 @@ class MountRepository(MountRepositoryInterface):
         Read in the desired mounts from a .json file
         """
 
-        with open(self.config_manager.get_config("DESIRED_MOUNTS_FILE"), "r") as f:
+        with open(self.config_manager.get_config("DESIRED_MOUNTS_FILE_PATH"), "r") as f:
             mounts_data = json.load(f)
 
         mounts = [
