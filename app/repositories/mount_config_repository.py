@@ -69,12 +69,11 @@ class FstabRepository(MountConfigRepository):
 
         local_dir = mount.mount_path
         actual_dir = mount.actual_path
-        options: str = "auto"
 
         if mount.mount_type == MountType.WINDOWS:
             # Get the location of the CIFS file
             cifs_file_location = self.config_manager.get_config("CIFS_FILE_LOCATION")
-            options = f"credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto",
+            options = f"credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto"
         elif mount.mount_type == MountType.LINUX:
             # We need to use SSHFS to mount linux shares
             linux_user = self.config_manager.get_config("LINUX_SSH_USER")
@@ -82,7 +81,7 @@ class FstabRepository(MountConfigRepository):
 
             # We need to update the actual path to include the SSH user
             actual_dir = f"{linux_user}@{mount.actual_path}"
-            options = f"IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto",
+            options = f"IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto"
         else:
             raise MountException(f"Mount type {mount.mount_type} not supported")
 
@@ -90,7 +89,7 @@ class FstabRepository(MountConfigRepository):
         replacements = {"\n": "", "\r": "", "\\": "/"}
         local_dir = replace_all(local_dir, replacements)
         actual_dir = replace_all(actual_dir, replacements)
-        mount_type = str(mount.mount_type)
+        mount_type = str(mount.mount_type.value)
 
         # Have to do this one separately as the double back slash was being replaced by a forward slash above
         replacement_space = {" ": "\\040"}
@@ -98,6 +97,8 @@ class FstabRepository(MountConfigRepository):
         actual_dir = replace_all(actual_dir, replacement_space)
 
         # Read the file
+
+        # TODO abstract this out
         with open(self.fstab_location, "r") as f:
             fstab = Fstab().read_file(f)
 
@@ -105,6 +106,7 @@ class FstabRepository(MountConfigRepository):
         fstab.entries.append(Entry(actual_dir, local_dir, mount_type, options, 0, 0))
 
         # Write our new fstab file
+        # TODO abstract this out
         formatted = str(fstab)
         with open(self.fstab_location, "w") as f:
             f.write(formatted)
