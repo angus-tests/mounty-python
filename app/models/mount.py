@@ -20,5 +20,6 @@ class Mount:
         Compare two mounts
         :param other: Another mount
         """
-        return self.mount_path == other.mount_path and self.actual_path == other.actual_path and self.mount_type == other.mount_type
+        return ((self.mount_path == other.mount_path)
+                and (self.actual_path == other.actual_path and self.mount_type == other.mount_type))
 

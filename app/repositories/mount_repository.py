@@ -10,6 +10,8 @@ from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.factories.mount_factory import MountFactory
 from app.models.mount import Mount
+from app.repositories.mount_config_repository import MountConfigRepository
+from app.util.config import ConfigManager
 
 
 class MountRepositoryInterface(ABC):
@@ -45,9 +47,10 @@ class MountRepositoryInterface(ABC):
         pass
 
     @abstractmethod
-    def unmount_all(self):
+    def unmount_all(self) -> list[Mount]:
         """
         unmount all mounts from the system
+        :return A list of mounts that failed to unmount
         """
         pass
 
@@ -57,35 +60,33 @@ class MountRepository(MountRepositoryInterface):
     Concrete implementation of a mount repository
     """
 
-    def __init__(self, config_manager, mount_prefix="/shares"):
+    def __init__(self,
+                 config_manager: ConfigManager,
+                 mount_config_repository: MountConfigRepository,
+                 mount_prefix="/shares"):
         self.config_manager = config_manager
+        self.mount_config_repository = mount_config_repository
         self.mount_prefix = mount_prefix
 
     def get_current_mounts(self) -> list[Mount]:
         """
-        Open the fstab file and read in all the mounts
-        that match our regex.
-
-        We currently juts look for mounts that start with our mount prefix
-        as we know these are the ones we control (not system or root mounts)
+        Get all the mounts on the system that we are interested in
+        these are the ones that are prefixed with self.mount_prefix
         """
 
-        fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
+        # Fetch all the mounts on the system from the config repo
+        all_system_mounts = self.mount_config_repository.get_all_system_mounts()
 
-        # Read the file
-        with open(fstab_location, "r") as f:
-            fstab = Fstab().read_file(f)
-
-        # Get the mounts that start with the mount prefix
+        # Filter out the mounts that don't start with our mount prefix
         return [
-            MountFactory.create_from_fstab_entry(entry)
-            for entry in fstab.entries
-            if entry.dir.startswith(self.mount_prefix)
+            mount
+            for mount in all_system_mounts
+            if mount.mount_path.startswith(self.mount_prefix)
         ]
 
     def get_desired_mounts(self) -> list[Mount]:
         """
-        Read in the mounts from the specified json file
+        Read in the desired mounts from a .json file
         """
         with open(self.config_manager.get_config("DESIRED_MOUNTS_FILE"), "r") as f:
             mounts_data = json.load(f)
@@ -99,44 +100,15 @@ class MountRepository(MountRepositoryInterface):
 
     def mount(self, mount: Mount):
         """
-        Mount a mount to the system
+        Add a mount to the system
         """
 
         # Create the mount point if it doesn't exist
         if not os.path.exists(f"{mount.mount_path}"):
             os.makedirs(mount.mount_path, exist_ok=True)
 
-        # In order for mounts to persist, we need to add the line to the /etc/fstab file
-        # Windows: <file system>       <dir>      <type> <options>
-        # Linux:   <Linux share>       <dir>      fuse.sshfs IdentityFile=/path/to/.ssh/id_rsa_linux,uid=1001,gid=5001
-
-        # Mount windows shares
-        if mount.mount_type == MountType.WINDOWS:
-
-            cifs_file_location = self.config_manager.get_config("CIFS_FILE_LOCATION")
-            self._make_mount_permanent(
-                mount.mount_path,
-                mount.actual_path,
-                "cifs",
-                f"credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto",
-            )
-
-        # Mount linux shares
-        elif mount.mount_type == MountType.LINUX:
-
-            # We need to use SSHFS to mount linux shares
-            linux_user = self.config_manager.get_config("LINUX_SSH_USER")
-            linux_ssh_location = self.config_manager.get_config("LINUX_SSH_LOCATION")
-            actual_path = f"{linux_user}@{mount.actual_path}"
-
-            self._make_mount_permanent(
-                mount.mount_path,
-                actual_path,
-                "fuse.sshfs",
-                f"IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto",
-            )
-        else:
-            raise MountException(f"Mount type {mount.mount_type} not supported")
+        # Store this mount information on the system to persist
+        self.mount_config_repository.store_mount_information(mount)
 
         # Call the mount command
         result = subprocess.run(["sudo", "mount", mount.mount_path], capture_output=True)
@@ -147,24 +119,25 @@ class MountRepository(MountRepositoryInterface):
 
     def unmount(self, mount_path: str):
         """
-        Unmount a mount from the system
-        :param mount_path: The path of the mount to unmount
+        Remove a mount from the system
+        :param mount_path: The local path of the mount to unmount
         """
 
         # Remove from fstab
-        self._remove_permanent_mount(mount_path)
+        self.mount_config_repository.remove_mount_information(mount_path)
 
         # Perform unmount
         umount_result = subprocess.run(["umount", mount_path])
 
-        # Remove the mount point
-        rm_result = subprocess.run(["rm", "-rf", mount_path])
-
         # Check if the unmount was successful
         if umount_result.returncode != 0:
-            raise UnmountException(f"Umount error - {umount_result.stderr}")
-        if rm_result.returncode != 0:
-            raise UnmountException(f"Remove error - {rm_result.stderr}")
+            raise UnmountException(f"Error unmounting - {umount_result.stderr}")
+        else:
+            # Remove the mount point (only if unmount success)
+            rm_result = subprocess.run(["rm", "-rf", mount_path])
+
+            if rm_result.returncode != 0:
+                raise UnmountException(f"Error removing mount point - {rm_result.stderr}")
 
     def unmount_all(self):
         """
@@ -172,93 +145,26 @@ class MountRepository(MountRepositoryInterface):
         that start with our mount prefix and keep the rest
         """
 
-        fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
+        # Get all our mounts
+        all_mounts = self.get_current_mounts()
 
-        # Read the file
-        with open(fstab_location, "r") as f:
-            fstab = Fstab().read_file(f)
+        # Remove these mounts from the system
+        self.mount_config_repository.remove_mounts(all_mounts)
 
-        # Unmount all mounts that start with the mount prefix and keep the rest
-        fstab_entries = []
-        for entry in fstab.entries:
-            if entry.dir.startswith(self.mount_prefix):
-                self.unmount(entry.dir)
+        # Store the failed mounts
+        failed_to_unmount = []
+
+        # Go through each mount and unmount
+        for mount in all_mounts:
+            umount_result = subprocess.run(["umount", mount.mount_path])
+            if umount_result.returncode != 0:
+                failed_to_unmount.append(mount)
             else:
-                fstab_entries.append(entry)
+                rm_result = subprocess.run(["rm", "-rf", mount.mount_path])
+                if rm_result.returncode != 0:
+                    failed_to_unmount.append(mount)
 
-        # Write our new fstab file
-        formatted = str(fstab)
-        with open(fstab_location, "w") as f:
-            f.write(formatted)
+        # Return a list of failed mounts
+        return failed_to_unmount
 
-    def _make_mount_permanent(
-        self, local_dir, actual_dir, mount_type, options="auto", dump=0, fsck=0
-    ):
-        """
-         This function will add a new line to the fstab file to ensure
-         the mount will persist on the VM
-        :param local_dir: Mount point on local machine. eg. /shares/mymount
-        :param actual_dir: The Mount point on another machine. eg. //servername/folder
-        :param mount_type: Type of mount this is, cifs, sshfs etc
-        :param options: String of options
-        :param dump: Something that needs to go in a fstab file apparently
-        :param fsck: Something else that needs to go in a fstab file apparently
-        :return:
-        """
 
-        def replace_all(text: str, dic: dict):
-            """
-            Execute multiple replaces on a string
-            in one go
-            :param text: string to execute replace on
-            :param dic: dictionary of replacements (key = target, value = replace with)
-            :return: str
-            """
-            for i, j in dic.items():
-                text = text.replace(i, j)
-            return text
-
-        fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
-
-        # Strip all bad stuff from the paths
-        replacements = {"\n": "", "\r": "", "\\": "/"}
-        local_dir = replace_all(local_dir, replacements)
-        actual_dir = replace_all(actual_dir, replacements)
-
-        # Have to do this one separately as the double back slash was being replaced by a forward slash above
-        replacement_space = {" ": "\\040"}
-        local_dir = replace_all(local_dir, replacement_space)
-        actual_dir = replace_all(actual_dir, replacement_space)
-
-        # Read the file
-        with open(fstab_location, "r") as f:
-            fstab = Fstab().read_file(f)
-
-        # Add our new mount point
-        fstab.entries.append(Entry(actual_dir, local_dir, mount_type, options, dump, fsck))
-
-        # Write our new fstab file
-        formatted = str(fstab)
-        with open(fstab_location, "w") as f:
-            f.write(formatted)
-
-    def _remove_permanent_mount(self, mount_path: str):
-        """
-        This function will remove a single
-        directory from the fstab file
-        :param mount_path: The local mount path
-        """
-
-        fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
-
-        # Read the file
-        with open(fstab_location, "r") as f:
-            fstab = Fstab().read_file(f)
-
-        # Keep every other entry except the one we want to remove
-        fstab.entries = [entry for entry in fstab.entries if not entry.dir == mount_path]
-
-        # Write our new fstab file
-        formatted = str(fstab)
-        with open(fstab_location, "w") as f:
-            f.write(formatted)

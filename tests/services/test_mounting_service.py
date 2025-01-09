@@ -18,7 +18,7 @@ def setup_mock_repository(desired_mounts=None, current_mounts=None):
     mock_repository.get_current_mounts.return_value = current_mounts or []
     mock_repository.mount.return_value = None
     mock_repository.unmount.return_value = None
-    mock_repository.unmount_all.return_value = None
+    mock_repository.unmount_all.return_value = []
     return mock_repository
 
 
@@ -266,6 +266,7 @@ class TestMountingServiceUnmountAll(unittest.TestCase):
                 Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
             ]
         )
+
 
         # Create the mounting service
         mounting_service = MountingService(mock_repository)

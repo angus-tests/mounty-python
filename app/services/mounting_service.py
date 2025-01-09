@@ -70,14 +70,20 @@ class MountingService:
     def unmount_all(self) -> bool:
         """
         Unmount all mounts from the system
+        :return
         """
         LogFacade.info("Unmounting all mounts")
-        try:
-            self.mount_repository.unmount_all()
-        except UnmountException as e:
-            LogFacade.error(f"Failed to unmount all mounts: {e}")
-            return False
-        return True
+        failed_to_umount = self.mount_repository.unmount_all()
+
+        # If at least one mount failed, log the results
+        if failed_to_umount:
+            LogFacade.log_table_error(
+                "Failed to unmount these mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in failed_to_umount])
+
+        # Return status (at least once failed mount is a failure)
+        return len(failed_to_umount) > 0
 
     def _mount(self, mount: Mount) -> bool:
         """
