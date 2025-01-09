@@ -1,0 +1,12 @@
+.venv
+venv
+*.pyc
+tests
+.editorconfig
+.git
+.idea
+.vscode
+__pycache__
+README.md
+Dockerfile
+.env
