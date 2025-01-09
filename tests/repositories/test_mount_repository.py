@@ -1,6 +1,8 @@
+import json
 import unittest
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch, mock_open
 
+from app.enums.enums import MountType
 from app.models.mount import Mount
 from app.repositories.mount_config_repository import MountConfigRepository
 from app.repositories.mount_repository import MountRepository
@@ -96,11 +98,81 @@ class TestGetCurrentMounts(unittest.TestCase):
 
 class TestGetDesiredMounts(unittest.TestCase):
 
-    def test_get_desired_mounts_empty(self):
+    @patch("builtins.open", new_callable=mock_open, read_data='[]')
+    def test_get_desired_mounts_empty(self, mock_json_open):
         """
         Simulate an empty desired mounts file
         """
-        pass
+
+        # We don't need a mock config repository for this test
+        mock_config_repository = setup_mount_config_repo()
+
+        # Create a mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+        mock_config_manager.get_config.return_value = "fake/path/to/desired/mounts.json"
+
+        # Create the MountRepo
+        mount_repo = MountRepository(
+            mock_config_manager,
+            mock_config_repository
+        )
+
+        # Run the get_current_mounts
+        current_mounts = mount_repo.get_desired_mounts()
+
+        # Assert the list is empty
+        self.assertListEqual([], current_mounts)
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_desired_mounts_with_content(self, mock_json_open):
+        """
+        Simulate a desired mounts file with a few mounts
+        """
+
+        # Mock the json file
+        mock_json_open.return_value.read.return_value = json.dumps(
+            [
+                {
+                    "mount_path": "/shares/outputs/example_data",
+                    "actual_path": "//ny334xx/EXAMPLE_LOCATION/PROD/ETC",
+                    "mount_type": "cifs"
+                },
+
+                {
+                    "mount_path": "/shares/inputs/another_example",
+                    "actual_path": "example:/abc/live/location/example",
+                    "mount_type": "fuse.sshfs"
+                }
+
+            ]
+        )
+
+        # We don't need a mock config repository for this test
+        mock_config_repository = setup_mount_config_repo()
+
+        # Create a mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+        mock_config_manager.get_config.return_value = "fake/path/to/desired/mounts.json"
+
+        # Create the MountRepo
+        mount_repo = MountRepository(
+            mock_config_manager,
+            mock_config_repository
+        )
+
+        # Run the get_current_mounts
+        current_mounts = mount_repo.get_desired_mounts()
+
+        expected = [
+            Mount(mount_path="/shares/outputs/example_data",
+                  actual_path="//ny334xx/EXAMPLE_LOCATION/PROD/ETC",
+                  mount_type=MountType.WINDOWS),
+            Mount(mount_path="/shares/inputs/another_example",
+                  actual_path="example:/abc/live/location/example",
+                  mount_type=MountType.LINUX)
+        ]
+        # Assert the list is empty
+        self.assertListEqual(expected, current_mounts)
 
 
 if __name__ == '__main__':
