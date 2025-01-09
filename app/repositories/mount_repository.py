@@ -87,7 +87,6 @@ class MountRepository(MountRepositoryInterface):
         Read in the desired mounts from a .json file
         """
 
-        # TODO abstract this out
         with open(self.config_manager.get_config("DESIRED_MOUNTS_FILE"), "r") as f:
             mounts_data = json.load(f)
 
@@ -103,7 +102,6 @@ class MountRepository(MountRepositoryInterface):
         Add a mount to the system
         """
 
-        # TODO abstract this out
         # Create the mount point if it doesn't exist
         if not os.path.exists(f"{mount.mount_path}"):
             os.makedirs(mount.mount_path, exist_ok=True)

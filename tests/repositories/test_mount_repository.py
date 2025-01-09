@@ -94,5 +94,14 @@ class TestGetCurrentMounts(unittest.TestCase):
         )
 
 
+class TestGetDesiredMounts(unittest.TestCase):
+
+    def test_get_desired_mounts_empty(self):
+        """
+        Simulate an empty desired mounts file
+        """
+        pass
+
+
 if __name__ == '__main__':
     unittest.main()
