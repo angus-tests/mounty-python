@@ -126,7 +126,7 @@ class FstabRepository(MountConfigRepository):
         with open(self.fstab_location, "w") as f:
             f.write(formatted)
 
-    def get_all_system_mounts(self):
+    def get_all_system_mounts(self) -> list[Mount]:
         """
         Get all system mounts from the fstab file
         """

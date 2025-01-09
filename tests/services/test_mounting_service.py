@@ -9,16 +9,21 @@ from app.repositories.mount_repository import MountRepositoryInterface
 from app.services.mounting_service import MountingService
 
 
-def setup_mock_repository(desired_mounts=None, current_mounts=None):
+def setup_mock_repository(desired_mounts: list[Mount] = None,
+                          current_mounts: list[Mount] = None,
+                          unmount_failures: list[Mount] = None):
     """
     Helper method to set up a mock repository with the specified desired and current mounts.
+    :param desired_mounts - Optionally specify what desired mounts this mock should return
+    :param current_mounts - Optionally specify the current system mounts this mock should return
+    :param unmount_failures - Optionally specify a list of mounts that failed to unmount
     """
     mock_repository = MagicMock(spec=MountRepositoryInterface)
+
+    # We only need to specify mock methods that do NOT return None
     mock_repository.get_desired_mounts.return_value = desired_mounts or []
     mock_repository.get_current_mounts.return_value = current_mounts or []
-    mock_repository.mount.return_value = None
-    mock_repository.unmount.return_value = None
-    mock_repository.unmount_all.return_value = []
+    mock_repository.unmount_all.return_value = unmount_failures or []
     return mock_repository
 
 
@@ -266,7 +271,6 @@ class TestMountingServiceUnmountAll(unittest.TestCase):
                 Mount(mount_path="/shares/test2", actual_path="//AnotherServer/Somewhere"),
             ]
         )
-
 
         # Create the mounting service
         mounting_service = MountingService(mock_repository)
