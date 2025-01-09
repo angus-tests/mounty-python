@@ -1,6 +1,6 @@
 import json
 import unittest
-from unittest.mock import MagicMock, patch, mock_open, ANY
+from unittest.mock import MagicMock, patch, mock_open
 
 from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException

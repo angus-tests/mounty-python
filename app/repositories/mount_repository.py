@@ -103,6 +103,7 @@ class MountRepository(MountRepositoryInterface):
         Add a mount to the system
         """
 
+        # TODO abstract FS operations to another class
         # Create the mount point if it doesn't exist
         if not os.path.exists(f"{mount.mount_path}"):
             os.makedirs(mount.mount_path, exist_ok=True)
@@ -133,6 +134,7 @@ class MountRepository(MountRepositoryInterface):
         if umount_result.returncode != 0:
             raise UnmountException(f"Error unmounting - {umount_result.stderr}")
         else:
+            # TODO abstract shutil operations to another class
             # Remove the mount point (only if unmount success)
             try:
                 shutil.rmtree(mount_path)
@@ -144,6 +146,8 @@ class MountRepository(MountRepositoryInterface):
         Unmount all mounts from the system
         that start with our mount prefix and keep the rest
         """
+
+        # TODO test this method
 
         # Get all our mounts
         all_mounts = self.get_current_mounts()
