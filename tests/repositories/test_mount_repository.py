@@ -1,9 +1,10 @@
 import json
 import unittest
-from unittest.mock import MagicMock, patch, mock_open
+from unittest.mock import MagicMock, patch, mock_open, ANY
 
 from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
+from app.exceptions.unmount_exception import UnmountException
 from app.models.mount import Mount
 from app.repositories.mount_config_repository import MountConfigRepository
 from app.repositories.mount_repository import MountRepository
@@ -253,6 +254,98 @@ class TestMount(unittest.TestCase):
                       mount_type=MountType.WINDOWS)
             )
 
+
+class TestUnmount(unittest.TestCase):
+
+    @patch("shutil.rmtree")
+    @patch("subprocess.run")
+    def test_unmount_success(self, mock_subprocess_run, mock_shutil_rmtree):
+        """
+        Simulates a simple unmount operation
+        """
+
+        # Mock the config repository
+        mock_config_repository = setup_mount_config_repo()
+
+        # Create a mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Mock the subprocess.run method to a successful return
+        mock_subprocess_run.return_value = MagicMock(returncode=0)
+
+        # Create the MountRepo
+        mount_repo = MountRepository(
+            mock_config_manager,
+            mock_config_repository
+        )
+
+        # Run the unmount with a simple mount
+        mount_repo.unmount("/shares/example")
+
+        # Assert that the remove_mount info method on the config repository was called
+        mock_config_repository.remove_mount_information.assert_called_once()
+
+        # Assert the mount point was removed
+        mock_shutil_rmtree.assert_called_once_with("/shares/example")
+
+    @patch("shutil.rmtree")
+    @patch("subprocess.run")
+    def test_unmount_raises_exception(self, mock_subprocess_run, _mock_shutil_rmtree):
+        """
+        Simulates an unmount operation that fails
+        """
+
+        # Mock the config repository
+        mock_config_repository = setup_mount_config_repo()
+
+        # Create a mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Mock the subprocess.run method to a failed run
+        mock_subprocess_run.return_value = MagicMock(returncode=2)
+
+        # Create the MountRepo
+        mount_repo = MountRepository(
+            mock_config_manager,
+            mock_config_repository
+        )
+
+        with self.assertRaises(UnmountException):
+            # Assert the mount point was removed
+            mount_repo.unmount("/shares/example")
+
+    @patch("shutil.rmtree")
+    @patch("subprocess.run")
+    def test_unmount_raises_exception_with_remove_mount_point(self, mock_subprocess_run, mock_shutil_rmtree):
+        """
+        Simulates an unmount operation that fails on
+        removing the mount point
+        """
+
+        # Mock the config repository
+        mock_config_repository = setup_mount_config_repo()
+
+        # Create a mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Mock the subprocess.run method to a successful run
+        mock_subprocess_run.return_value = MagicMock(returncode=0)
+
+        # Mock the shutil method to raise an exception
+        def raise_fake_permission_error(*args, **kwargs):
+            raise PermissionError("Cannot remove directory for some reason")
+
+        mock_shutil_rmtree.side_effect = raise_fake_permission_error
+
+        # Create the MountRepo
+        mount_repo = MountRepository(
+            mock_config_manager,
+            mock_config_repository
+        )
+
+        with self.assertRaises(UnmountException):
+            # Assert the mount point was removed
+            mount_repo.unmount("/shares/example")
 
 
 if __name__ == '__main__':

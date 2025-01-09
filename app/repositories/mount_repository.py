@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 import subprocess
 from abc import ABC, abstractmethod
 
@@ -133,10 +134,10 @@ class MountRepository(MountRepositoryInterface):
             raise UnmountException(f"Error unmounting - {umount_result.stderr}")
         else:
             # Remove the mount point (only if unmount success)
-            rm_result = subprocess.run(["rm", "-rf", mount_path])
-
-            if rm_result.returncode != 0:
-                raise UnmountException(f"Error removing mount point - {rm_result.stderr}")
+            try:
+                shutil.rmtree(mount_path)
+            except Exception as e:
+                raise UnmountException(f"Error removing mount point - {e}")
 
     def unmount_all(self):
         """
