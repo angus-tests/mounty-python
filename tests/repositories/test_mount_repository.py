@@ -175,5 +175,44 @@ class TestGetDesiredMounts(unittest.TestCase):
         self.assertListEqual(expected, current_mounts)
 
 
+class TestMount(unittest.TestCase):
+
+    @patch("subprocess.run")
+    def test_mount_success(self, mock_subprocess):
+        """
+        Simulates a simple mount operation
+        """
+
+        # Mock the config repository
+        mock_config_repository = setup_mount_config_repo()
+
+        # Create a mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Mock the subprocess.run method to a successful return
+        mock_subprocess.return_value = MagicMock(returncode=0)
+
+        # Create the MountRepo
+        mount_repo = MountRepository(
+            mock_config_manager,
+            mock_config_repository
+        )
+
+        # Run the mount with a simple mount
+        mount_repo.mount(
+            Mount(mount_path="/shares/example",
+                  actual_path="//someServer/someShare",
+                  mount_type=MountType.WINDOWS)
+        )
+
+        # Assert that the store mount information method on the config repository was called
+        mock_config_repository.store_mount_information.assert_called_once()
+
+        # Assert that subproccess.run was called with the correct arguments
+        mock_subprocess.assert_called_once_with(
+            ["sudo", "mount", "/shares/example"], capture_output=True
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
