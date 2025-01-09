@@ -196,6 +196,8 @@ class MountingService:
 
         for desired_mount in desired_mounts:
             for current_mount in current_mounts:
-                if desired_mount.mount_path == current_mount.mount_path and (desired_mount.actual_path != current_mount.actual_path or desired_mount.mount_type != current_mount.mount_type):
+                # If the mount paths are the same but the mounts are different then we need to update
+                if (desired_mount.mount_path == current_mount.mount_path
+                        and desired_mount != current_mount):
                     mounts_to_update.append(desired_mount)
         return mounts_to_update

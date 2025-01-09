@@ -21,7 +21,6 @@ class Mount:
         Compare two mounts
         :param other: Another mount
         """
-
         # TODO abstract this away?
         # Remove the user from the SSH path
         normalised_actual = re.sub(r".+?@", "", self.actual_path)
