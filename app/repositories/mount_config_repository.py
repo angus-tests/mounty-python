@@ -70,6 +70,7 @@ class FstabRepository(MountConfigRepository):
         local_dir = mount.mount_path
         actual_dir = mount.actual_path
 
+        # TODO did someone says strategy pattern?
         if mount.mount_type == MountType.WINDOWS:
             # Get the location of the CIFS file
             cifs_file_location = self.config_manager.get_config("CIFS_FILE_LOCATION")
