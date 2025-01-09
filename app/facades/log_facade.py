@@ -14,10 +14,24 @@ class LogFacade:
     }
 
     @staticmethod
-    def configure_logger(level=logging.INFO):
+    def disable_logging():
+        """
+        Disable all logging below CRITICAL level.
+        """
+        LogFacade.configure_logger(level=logging.CRITICAL, null_handler=True)
+
+    @staticmethod
+    def configure_logger(level=logging.INFO, null_handler=False):
         """
         Set up a basic logging configuration with a consistent format and default level.
         """
+
+        if null_handler:
+            # Set a null handler to prevent any logging from being output
+            null_logger = logging.getLogger()
+            null_logger.setLevel(logging.CRITICAL)
+            null_logger.addHandler(logging.NullHandler())
+            return
 
         # Set up a formatter
         formatter = logging.Formatter(
@@ -85,47 +99,6 @@ class LogFacade:
         return LogFacade._loggers[logger_name]
 
     @staticmethod
-    def log_mounts(level, title: str, message: str, items: list[str]):
-        """
-        Function to log messages with configurable level, title, message, and content.
-
-        :param level: Logging level (e.g., logging.INFO, logging.DEBUG, etc.)
-        :param title: The title of the log message.
-        :param message: The message to display in the header.
-        :param items: The list of items to display in the log content.
-        """
-        # Format the header
-        header = f"\n\n================== {title} ==================\n"
-        header += "+-------------------------------------------+\n"
-        header += f"| {message:<40} |\n"
-        header += "+-------------------------------------------+\n"
-
-        # Check if the items list is empty and set content accordingly
-        if not items:
-            content = f"| {'EMPTY':<40} |"
-        else:
-            content = "\n".join(f"- {item:<25} " for item in items)
-
-        footer = "\n+-------------------------------------------\n+"
-
-        # Combine header, content, and footer
-        full_message = header + content + footer
-
-        # Log the message with the specified level
-        if level == logging.INFO:
-            LogFacade.info(full_message)
-        elif level == logging.DEBUG:
-            logging.debug(full_message)
-        elif level == logging.WARNING:
-            LogFacade.warning(full_message)
-        elif level == logging.ERROR:
-            LogFacade.error(full_message)
-        elif level == logging.CRITICAL:
-            LogFacade.critical(full_message)
-        else:
-            LogFacade.log(level, full_message)
-
-    @staticmethod
     def log_table(level, title: str, headers: list[str], table: list[list[str]]):
 
         # Format the table
@@ -133,6 +106,14 @@ class LogFacade:
 
         # Log the table with the specified level
         LogFacade.log(level, table_with_title)
+
+    @staticmethod
+    def log_table_info(title: str, headers: list[str], table: list[list[str]]):
+        LogFacade.log_table(logging.INFO, title, headers, table)
+
+    @staticmethod
+    def log_table_error(title: str, headers: list[str], table: list[list[str]]):
+        LogFacade.log_table(logging.CRITICAL, title, headers, table)
 
     @staticmethod
     def format_table(title: str, headers: list[str], table: list[list[str]]) -> str:
