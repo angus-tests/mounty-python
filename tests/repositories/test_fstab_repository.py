@@ -182,6 +182,55 @@ class TestRemoveMountInformation(unittest.TestCase):
         self.assertEqual(expected_formatted, actual_formatted)
 
 
+class TestRemoveMounts(unittest.TestCase):
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_remove_multiple_mounts(self, mock_fstab_open):
+        """
+        This test will simulate removing multiple mounts from the fstab file
+        """
+
+        # Mock the FSTAB content
+        mock_fstab_open.return_value.read.return_value = f"""
+                /mnt/windows /system/mounts/windows cifs credentials=/path/to/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
+                /mnt/windows/folder /shares/windows cifs credentials=/path/to/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
+                /mnt/linux /shares/linux/mount fuse.sshfs IdentityFile=/path/to/.ssh/id_rsa_linux,uid=1001,gid=5001,auto 0 0
+                """
+
+        # Create a list of mounts that exist in the fstab file
+        mounts = [
+            FakeMountFactory.windows_mount(
+                mount_path="/shares/windows",
+                actual_path="/mnt/windows/folder"
+            ),
+            FakeMountFactory.linux_mount(
+                mount_path="/shares/linux/mount",
+                actual_path="/mnt/linux"
+            )
+        ]
+
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Create the fstab repository
+        fstab_repository = FstabRepository(mock_config_manager)
+
+        # Remove the mounts
+        fstab_repository.remove_mounts(mounts)
+
+        # Ensure that the mount information was removed when it is written back to the file
+
+        expected_content = f"""
+                /mnt/windows /system/mounts/windows cifs credentials=/path/to/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
+                """
+
+        # Format the expected and actual to make them comparable
+        expected_formatted = format_file_contents(expected_content)
+        actual_content = mock_fstab_open().write.call_args[0][0]
+        actual_formatted = format_file_contents(actual_content)
+
+        # Assert the content was written correctly
+        self.assertEqual(expected_formatted, actual_formatted)
+
 
 if __name__ == '__main__':
     unittest.main()
