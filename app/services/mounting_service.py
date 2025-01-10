@@ -45,25 +45,6 @@ class MountingService:
             [[mount.mount_path, mount.actual_path] for mount in mounts_to_update])
         failed_to_update = self._update_mounts(mounts_to_update)
 
-        # Log any failed mounts
-        if failed_to_add:
-            LogFacade.log_table_error(
-                "Failed to add these mounts",
-                ["Mount Path", "Actual Path"],
-                [[mount.mount_path, mount.actual_path] for mount in failed_to_add])
-
-        if failed_to_remove:
-            LogFacade.log_table_error(
-                "Failed to remove these mounts",
-                ["Mount Path", "Actual Path"],
-                [[mount.mount_path, mount.actual_path] for mount in failed_to_remove])
-
-        if failed_to_update:
-            LogFacade.log_table_error(
-                "Failed to update these mounts",
-                ["Mount Path", "Actual Path"],
-                [[mount.mount_path, mount.actual_path] for mount in failed_to_update])
-
         # Return status (True if all mounts were successful)
         return not failed_to_add and not failed_to_remove and not failed_to_update
 
@@ -126,38 +107,90 @@ class MountingService:
             return False
         return True
 
-    def _remove_mounts(self, mounts: list[Mount]) -> list[Mount]:
+    def _remove_mounts(self, mounts: list[Mount]) -> bool:
         """
         Remove a list of mounts from the system
         :return: A list of mounts that failed to be removed
         """
         failed_mounts = []
+        success_mounts = []
         for mount in mounts:
             if not self._unmount(mount):
                 failed_mounts.append(mount)
-        return failed_mounts
+            else:
+                success_mounts.append(mount)
 
-    def _add_mounts(self, mounts: list[Mount]) -> list[Mount]:
+        # Log the unsuccessful mounts
+        if failed_mounts:
+            LogFacade.log_table_error(
+                "Failed to remove these mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in failed_mounts])
+
+        # Log the successful mounts
+        if success_mounts:
+            LogFacade.log_table_info(
+                "Successfully removed these mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in success_mounts])
+
+        return len(failed_mounts) > 0
+
+    def _add_mounts(self, mounts: list[Mount]) -> bool:
         """
         Add a list of mounts to the system
         :return: A list of mounts that failed to be added
         """
         failed_mounts = []
+        success_mounts = []
         for mount in mounts:
             if not self._mount(mount):
                 failed_mounts.append(mount)
-        return failed_mounts
+            else:
+                success_mounts.append(mount)
 
-    def _update_mounts(self, mounts: list[Mount]) -> list[Mount]:
+        # Log the unsuccessful mounts
+        if failed_mounts:
+            LogFacade.log_table_error(
+                "Failed to add these mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in failed_mounts])
+
+        # Log the successful mounts
+        if success_mounts:
+            LogFacade.log_table_info(
+                "Successfully added these mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in success_mounts])
+        return len(failed_mounts) > 0
+
+    def _update_mounts(self, mounts: list[Mount]) -> bool:
         """
         Update a list of mounts
         :return: A list of mounts that failed to be updated
         """
         failed_mounts = []
+        success_mounts = []
         for mount in mounts:
             if not self._unmount(mount) or not self._mount(mount):
                 failed_mounts.append(mount)
-        return failed_mounts
+            else:
+                success_mounts.append(mount)
+
+        # Log the unsuccessful mounts
+        if failed_mounts:
+            LogFacade.log_table_error(
+                "Failed to update these mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in failed_mounts])
+
+        # Log the successful mounts
+        if success_mounts:
+            LogFacade.log_table_info(
+                "Successfully updated these mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in success_mounts])
+        return len(failed_mounts) > 0
 
     def _find_mounts_to_remove(self, desired_mounts: list[Mount], current_mounts: list[Mount]) -> list[Mount]:
         """
