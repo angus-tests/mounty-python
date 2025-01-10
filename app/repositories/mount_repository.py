@@ -117,6 +117,13 @@ class MountRepository(MountRepositoryInterface):
 
         # Check if the mount was successful
         if result.returncode != 0:
+
+            LogFacade.warning(f"Mount operation failed, removing mount information for {mount.mount_path}")
+
+            # If the mount failed, remove the mount information
+            self.mount_config_repository.remove_mount_information(mount.mount_path)
+
+            # Raise an exception
             raise MountException(result.stderr)
 
     def unmount(self, mount_path: str):
