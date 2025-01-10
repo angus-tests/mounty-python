@@ -175,11 +175,21 @@ class MountRepository(MountRepositoryInterface):
         for mount in all_mounts:
             umount_result = subprocess.run(["umount", mount.mount_path])
             if umount_result.returncode != 0:
-                failed_to_unmount.append(mount)
+
+                if "not mounted." in umount_result.stderr.decode("utf-8"):
+                    LogFacade.warning(f"Attempted to unmount {mount.mount_path} but it was already unmounted")
+                    try:
+                        shutil.rmtree(mount.mount_path)
+                    except Exception:
+                        LogFacade.error(f"Failed to remove mount point {mount.mount_path}")
+                        failed_to_unmount.append(mount)
+                else:
+                    failed_to_unmount.append(mount)
             else:
                 try:
                     shutil.rmtree(mount.mount_path)
                 except Exception:
+                    LogFacade.error(f"Failed to remove mount point {mount.mount_path}")
                     failed_to_unmount.append(mount)
                 LogFacade.info(f"Unmounted {mount.mount_path} successfully")
 
