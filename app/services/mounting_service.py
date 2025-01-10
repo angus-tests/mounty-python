@@ -10,7 +10,7 @@ class MountingService:
     def __init__(self, mount_repository: MountRepositoryInterface):
         self.mount_repository = mount_repository
 
-    def run(self):
+    def run(self) -> bool:
         """
         Run the mounting service
         """
@@ -83,7 +83,7 @@ class MountingService:
                 [[mount.mount_path, mount.actual_path] for mount in failed_to_umount])
 
         # Return status (at least once failed mount is a failure)
-        return len(failed_to_umount) > 0
+        return len(failed_to_umount) == 0
 
     def _mount(self, mount: Mount) -> bool:
         """

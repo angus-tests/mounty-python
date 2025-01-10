@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
+from app.facades.log_facade import LogFacade
 from app.factories.mount_factory import MountFactory
 from app.models.mount import Mount
 from app.repositories.mount_config_repository import MountConfigRepository
@@ -168,6 +169,7 @@ class MountRepository(MountRepositoryInterface):
                     shutil.rmtree(mount.mount_path)
                 except Exception:
                     failed_to_unmount.append(mount)
+                LogFacade.info(f"Unmounted {mount.mount_path} successfully")
 
         # Return a list of failed mounts
         return failed_to_unmount

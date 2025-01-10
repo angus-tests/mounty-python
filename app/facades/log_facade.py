@@ -113,7 +113,7 @@ class LogFacade:
 
     @staticmethod
     def log_table_error(title: str, headers: list[str], table: list[list[str]]):
-        LogFacade.log_table(logging.CRITICAL, title, headers, table)
+        LogFacade.log_table(logging.ERROR, title, headers, table)
 
     @staticmethod
     def format_table(title: str, headers: list[str], table: list[list[str]]) -> str:
