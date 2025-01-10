@@ -81,7 +81,7 @@ class MountRepository(MountRepositoryInterface):
         return [
             mount
             for mount in all_system_mounts
-            if mount.mount_path.startswith(self.mount_prefix)
+            if mount.mount_path.startswith(self.mount_prefix) and os.path.ismount(mount.mount_path)
         ]
 
     def get_desired_mounts(self) -> list[Mount]:
@@ -118,10 +118,9 @@ class MountRepository(MountRepositoryInterface):
         # Check if the mount was successful
         if result.returncode != 0:
 
-            LogFacade.warning(f"Mount operation failed, removing mount information for {mount.mount_path}")
-
-            # If the mount failed, remove the mount information
-            self.mount_config_repository.remove_mount_information(mount.mount_path)
+            # Check if the mount was not successful
+            if not os.path.ismount(mount.mount_path):
+                LogFacade.warning(f"Mount operation failed removing mount information for {mount.mount_path}")
 
             # Raise an exception
             raise MountException(result.stderr)
@@ -134,6 +133,10 @@ class MountRepository(MountRepositoryInterface):
 
         # Remove from fstab
         self.mount_config_repository.remove_mount_information(mount_path)
+
+        if not os.path.ismount(mount_path):
+            LogFacade.warning(f"Attempted to unmount {mount_path} but it was already unmounted")
+            return
 
         # Perform unmount
         umount_result = subprocess.run(["umount", mount_path])
@@ -171,12 +174,14 @@ class MountRepository(MountRepositoryInterface):
         # Store the failed mounts
         failed_to_unmount = []
 
+        # TODO clean up this code
+
         # Go through each mount and unmount
         for mount in all_mounts:
             umount_result = subprocess.run(["umount", mount.mount_path])
             if umount_result.returncode != 0:
 
-                if "not mounted." in umount_result.stderr.decode("utf-8"):
+                if not os.path.ismount(mount.mount_path):
                     LogFacade.warning(f"Attempted to unmount {mount.mount_path} but it was already unmounted")
                     try:
                         shutil.rmtree(mount.mount_path)
