@@ -164,8 +164,9 @@ class MountRepository(MountRepositoryInterface):
             if umount_result.returncode != 0:
                 failed_to_unmount.append(mount)
             else:
-                rm_result = subprocess.run(["rm", "-rf", mount.mount_path])
-                if rm_result.returncode != 0:
+                try:
+                    shutil.rmtree(mount.mount_path)
+                except Exception:
                     failed_to_unmount.append(mount)
 
         # Return a list of failed mounts
