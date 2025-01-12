@@ -12,41 +12,74 @@ class MountingService:
 
     def run(self) -> bool:
         """
-        Run the mounting service
+        Run the mounting service by adding, removing, and updating mounts as needed.
         """
+        desired_mounts, current_mounts = self._fetch_mount_data()
 
-        # Fetch the desired mounts from the repository
+        # Process mounts
+        all_operations_successful = (
+            self._process_mounts("add", desired_mounts, current_mounts, self._add_mounts) and
+            self._process_mounts("remove", desired_mounts, current_mounts, self._remove_mounts) and
+            self._process_mounts("update", desired_mounts, current_mounts, self._update_mounts)
+        )
+
+        return all_operations_successful
+
+    def dry_run(self) -> bool:
+        """
+        Display the mounts that would be added, removed, or updated without making any changes.
+        """
+        desired_mounts, current_mounts = self._fetch_mount_data()
+
+        # Log planned operations
+        self._log_mounts("add", desired_mounts, current_mounts)
+        self._log_mounts("remove", desired_mounts, current_mounts)
+        self._log_mounts("update", desired_mounts, current_mounts)
+
+        return True
+
+    def _fetch_mount_data(self):
+        """
+        Fetch desired and current mounts from the repository.
+        """
         desired_mounts = self.mount_repository.get_desired_mounts()
-
-        # Fetch the current mounts from the repository
         current_mounts = self.mount_repository.get_current_mounts()
+        return desired_mounts, current_mounts
 
-        # Find mounts to add
-        mounts_to_add = self._find_mounts_to_add(desired_mounts, current_mounts)
+    def _process_mounts(self, action: str, desired_mounts, current_mounts, operation) -> bool:
+        """
+        Process mounts for a specific action (add, remove, update) using the provided operation.
+        """
+        if action == "add":
+            mounts = self._find_mounts_to_add(desired_mounts, current_mounts)
+        elif action == "remove":
+            mounts = self._find_mounts_to_remove(desired_mounts, current_mounts)
+        elif action == "update":
+            mounts = self._find_mounts_to_update(desired_mounts, current_mounts)
+        else:
+            raise ValueError(f"Unknown action: {action}")
+
+        self._log_mounts(action, desired_mounts, current_mounts)
+        return not operation(mounts)
+
+    def _log_mounts(self, action: str, desired_mounts, current_mounts):
+        """
+        Log mount actions (add, remove, update) to provide an overview of planned operations.
+        """
+        if action == "add":
+            mounts = self._find_mounts_to_add(desired_mounts, current_mounts)
+        elif action == "remove":
+            mounts = self._find_mounts_to_remove(desired_mounts, current_mounts)
+        elif action == "update":
+            mounts = self._find_mounts_to_update(desired_mounts, current_mounts)
+        else:
+            raise ValueError(f"Unknown action: {action}")
+
         LogFacade.log_table_info(
-            "Mounts to add",
+            f"Mounts to {action}",
             ["Mount Path", "Actual Path"],
-            [[mount.mount_path, mount.actual_path] for mount in mounts_to_add])
-        failed_to_add = self._add_mounts(mounts_to_add)
-
-        # Find mounts to remove
-        mounts_to_remove = self._find_mounts_to_remove(desired_mounts, current_mounts)
-        LogFacade.log_table_info(
-            "Mounts to remove",
-            ["Mount Path", "Actual Path"],
-            [[mount.mount_path, mount.actual_path] for mount in mounts_to_remove])
-        failed_to_remove = self._remove_mounts(mounts_to_remove)
-
-        # Find mounts to update
-        mounts_to_update = self._find_mounts_to_update(desired_mounts, current_mounts)
-        LogFacade.log_table_info(
-            "Mounts to update",
-            ["Mount Path", "Actual Path"],
-            [[mount.mount_path, mount.actual_path] for mount in mounts_to_update])
-        failed_to_update = self._update_mounts(mounts_to_update)
-
-        # Return status (True if all mounts were successful)
-        return not failed_to_add and not failed_to_remove and not failed_to_update
+            [[mount.mount_path, mount.actual_path] for mount in mounts]
+        )
 
     def unmount_all(self) -> bool:
         """

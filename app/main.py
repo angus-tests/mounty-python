@@ -3,10 +3,10 @@ from app.repositories.mount_config_repository import FstabRepository
 from app.repositories.mount_repository import MountRepository
 from app.services.mounting_service import MountingService
 from app.util.config import ConfigManager
-from app.util.message import MESSAGE
+from app.util.message import MESSAGE, DRY_RUN
 
 
-def main():
+def main(dry_run=False):
     """
     Script entry point
     """
@@ -15,7 +15,10 @@ def main():
     LogFacade.configure_logger()
 
     # Print the welcome message
-    LogFacade.info("Starting Mounty Python "+MESSAGE)
+    if dry_run:
+        LogFacade.info("Starting Mounty Python [DRY RUN] " + MESSAGE + DRY_RUN)
+    else:
+        LogFacade.info("Starting Mounty Python " + MESSAGE)
 
     # Initialize a config manager and load the configuration from the environment
     config_manager = ConfigManager()
@@ -29,7 +32,10 @@ def main():
     mounting_service = MountingService(mount_repository)
 
     # Run the mounting service
-    status = mounting_service.run()
+    if dry_run:
+        status = mounting_service.dry_run()
+    else:
+        status = mounting_service.run()
 
     # Return an exit code
     if status:
