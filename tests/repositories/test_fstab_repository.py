@@ -232,5 +232,72 @@ class TestRemoveMounts(unittest.TestCase):
         self.assertEqual(expected_formatted, actual_formatted)
 
 
+class TestCleanSlate(unittest.TestCase):
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_clean_slate_simple(self, mock_fstab_open):
+        """
+        This test will simulate an fstab with some old shares on
+        and some system shares, we will clean slate with some new shares
+        """
+
+        cifs_file_location = "/etc/.cifs"
+        linux_ssh_location = "/root/.ssh/id_rsa_linux"
+        linux_user = "dave"
+
+        # Mock the FSTAB content
+        mock_fstab_open.return_value.read.return_value = f"""
+        /mnt/windows /system/mounts/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+        /mnt/windows/folder /shares/windows/old cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+        {linux_user}@/mnt/linux/folder /shares/linux/old fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
+        """
+
+        # Create a list of new mounts we want to clean slate with
+        mounts = [
+            FakeMountFactory.windows_mount(
+                mount_path="/shares/windows/new",
+                actual_path="/mnt/windows/folder"
+            ),
+            FakeMountFactory.linux_mount(
+                mount_path="/shares/linux/new",
+                actual_path="/mnt/linux/folder"
+            )
+        ]
+
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Mock the cifs_file_location
+        config_values = {
+            "CIFS_FILE_LOCATION": cifs_file_location,
+            "LINUX_SSH_LOCATION": linux_ssh_location,
+            "LINUX_SSH_USER": linux_user,
+            "FSTAB_LOCATION": "/etc/fstab"
+        }
+
+        # Use a lambda to return values based on the parameter
+        mock_config_manager.get_config.side_effect = lambda key: config_values[key]
+
+        # Create the fstab repository
+        fstab_repository = FstabRepository(mock_config_manager, mount_prefix="/shares")
+
+        # Clean slate with the new mounts
+        fstab_repository.clean_slate(mounts)
+
+        # Ensure that the mount information was removed when it is written back to the file
+        expected_content = f"""
+        /mnt/windows /system/mounts/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+        /mnt/windows/folder /shares/windows/new cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+        {linux_user}@/mnt/linux/folder /shares/linux/new fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
+        """
+
+        # Format the expected and actual to make them comparable
+        expected_formatted = format_file_contents(expected_content)
+        actual_content = mock_fstab_open().write.call_args[0][0]
+        actual_formatted = format_file_contents(actual_content)
+
+        # Assert the content was written correctly
+        self.assertEqual(expected_formatted, actual_formatted)
+
+
 if __name__ == '__main__':
     unittest.main()
