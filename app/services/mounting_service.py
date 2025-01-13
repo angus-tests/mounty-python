@@ -1,3 +1,5 @@
+from collections.abc import Callable
+
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
@@ -30,12 +32,13 @@ class MountingService:
         Display the mounts that would be added, removed, or updated without making any changes.
         """
         desired_mounts, current_mounts = self._fetch_mount_data()
+        orphan_mounts = self.mount_repository.get_orphan_mounts()
 
         # Log planned operations
         self._log_mounts("add", desired_mounts, current_mounts)
         self._log_mounts("remove", desired_mounts, current_mounts)
         self._log_mounts("update", desired_mounts, current_mounts)
-        self._log_mounts("orphans", desired_mounts, current_mounts, custom_message="Orphan mounts")
+        self._log_mounts("orphans", desired_mounts, current_mounts, orphan_mounts, custom_message="Orphan mounts")
         return True
 
     def _fetch_mount_data(self):
@@ -46,7 +49,7 @@ class MountingService:
         current_mounts = self.mount_repository.get_current_mounts()
         return desired_mounts, current_mounts
 
-    def _process_mounts(self, action: str, desired_mounts, current_mounts, operation) -> bool:
+    def _process_mounts(self, action: str, desired_mounts: list[Mount], current_mounts: list[Mount], operation: Callable) -> bool:
         """
         Process mounts for a specific action (add, remove, update) using the provided operation.
         """
@@ -59,10 +62,13 @@ class MountingService:
         else:
             raise ValueError(f"Unknown action: {action}")
 
+        # Log the mounts that will be processed
         self._log_mounts(action, desired_mounts, current_mounts)
-        return not operation(mounts)
 
-    def _log_mounts(self, action: str, desired_mounts, current_mounts, custom_message=None):
+        # Perform the operation and return the result
+        return operation(mounts)
+
+    def _log_mounts(self, action: str, desired_mounts: list[Mount], current_mounts: list[Mount], orphan_mounts=None, custom_message=None):
         """
         Log mount actions (add, remove, update) to provide an overview of planned operations.
         """
@@ -73,7 +79,7 @@ class MountingService:
         elif action == "update":
             mounts = self._find_mounts_to_update(desired_mounts, current_mounts)
         elif action == "orphans":
-            mounts = self._find_orphan_mounts(current_mounts)
+            mounts = orphan_mounts
         else:
             raise ValueError(f"Unknown action: {action}")
 
@@ -88,7 +94,7 @@ class MountingService:
     def unmount_all(self) -> bool:
         """
         Unmount all mounts from the system
-        :return
+        :return True if all mounts were unmounted successfully
         """
         LogFacade.info("Unmounting all mounts")
         failed_to_umount = self.mount_repository.unmount_all()
@@ -106,6 +112,7 @@ class MountingService:
     def _mount(self, mount: Mount) -> bool:
         """
         Mount a directory
+        :return True if the mount was mounted successfully
         """
         LogFacade.info(f"Mounting {mount.mount_path} -> {mount.actual_path}")
         try:
@@ -118,6 +125,7 @@ class MountingService:
     def _unmount(self, mount: Mount) -> bool:
         """
         Unmount a directory
+        :return True if the mount was unmounted successfully
         """
         LogFacade.info(f"Unmounting {mount.mount_path}")
         try:
@@ -132,6 +140,7 @@ class MountingService:
         Update an existing mount
         this will use the mount path to remove the mount,
         then remount the mount with the new details
+        :return True if the mount was updated successfully
         """
         LogFacade.info(
             f"Updating {mount.mount_path}")
@@ -147,7 +156,7 @@ class MountingService:
     def _remove_mounts(self, mounts: list[Mount]) -> bool:
         """
         Remove a list of mounts from the system
-        :return: A list of mounts that failed to be removed
+        :return: True if all mounts were removed successfully
         """
         failed_mounts = []
         success_mounts = []
@@ -171,12 +180,12 @@ class MountingService:
                 ["Mount Path", "Actual Path"],
                 [[mount.mount_path, mount.actual_path] for mount in success_mounts])
 
-        return len(failed_mounts) > 0
+        return len(failed_mounts) == 0
 
     def _add_mounts(self, mounts: list[Mount]) -> bool:
         """
         Add a list of mounts to the system
-        :return: A list of mounts that failed to be added
+        :return: True if all mounts were added successfully
         """
         failed_mounts = []
         success_mounts = []
@@ -199,12 +208,12 @@ class MountingService:
                 "Successfully added these mounts",
                 ["Mount Path", "Actual Path"],
                 [[mount.mount_path, mount.actual_path] for mount in success_mounts])
-        return len(failed_mounts) > 0
+        return len(failed_mounts) == 0
 
     def _update_mounts(self, mounts: list[Mount]) -> bool:
         """
         Update a list of mounts
-        :return: A list of mounts that failed to be updated
+        :return: True if all mounts were updated successfully
         """
         failed_mounts = []
         success_mounts = []
@@ -227,7 +236,7 @@ class MountingService:
                 "Successfully updated these mounts",
                 ["Mount Path", "Actual Path"],
                 [[mount.mount_path, mount.actual_path] for mount in success_mounts])
-        return len(failed_mounts) > 0
+        return len(failed_mounts) == 0
 
     def _find_mounts_to_remove(self, desired_mounts: list[Mount], current_mounts: list[Mount]) -> list[Mount]:
         """
@@ -262,6 +271,7 @@ class MountingService:
         the same but the actual path or mount type is different
         """
 
+
         mounts_to_update = []
 
         for desired_mount in desired_mounts:
@@ -271,6 +281,3 @@ class MountingService:
                         and desired_mount != current_mount):
                     mounts_to_update.append(desired_mount)
         return mounts_to_update
-
-    def _find_orphan_mounts(self, current_mounts):
-        return self.mount_repository.get_orphan_mounts()
