@@ -77,12 +77,16 @@ class MountRepository(MountRepositoryInterface):
         # Fetch all the mounts on the system from the config repo
         all_system_mounts = self.mount_config_repository.get_all_system_mounts()
 
+        current_mounts = []
+
         # Filter out the mounts that don't start with our mount prefix
-        return [
-            mount
-            for mount in all_system_mounts
-            if mount.mount_path.startswith(self.mount_prefix) and os.path.ismount(mount.mount_path)
-        ]
+        for mount in all_system_mounts:
+            if mount.mount_path.startswith(self.mount_prefix) and os.path.ismount(mount.mount_path):
+                current_mounts.append(mount)
+            elif not os.path.ismount(mount.mount_path) and mount.mount_path.startswith(self.mount_prefix):
+                LogFacade.warning(f"Mount {mount.mount_path} is present in the config but not mounted on the system")
+
+        return current_mounts
 
     def get_desired_mounts(self) -> list[Mount]:
         """
