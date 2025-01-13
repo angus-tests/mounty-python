@@ -137,11 +137,6 @@ class MountRepository(MountRepositoryInterface):
 
         # Check if the mount was successful
         if result.returncode != 0:
-
-            # Check if the mount was not successful
-            if not os.path.ismount(mount.mount_path):
-                LogFacade.warning(f"Mount operation failed removing mount information for {mount.mount_path}")
-
             # Raise an exception
             raise MountException(result.stderr)
 
@@ -164,11 +159,7 @@ class MountRepository(MountRepositoryInterface):
         # Check if the unmount was successful
         if umount_result.returncode != 0:
 
-            # Check if this was a "not mounted" error which means it was already unmounted
-            if "not mounted." in umount_result.stderr.decode("utf-8"):
-                LogFacade.warning(f"Attempted to unmount {mount_path} but it was already unmounted")
-            else:
-                raise UnmountException(f"Error unmounting - {umount_result.stderr}")
+            raise UnmountException(f"Error unmounting - {umount_result.stderr}")
 
         # TODO abstract shutil operations to another class
         # Remove the mount point
