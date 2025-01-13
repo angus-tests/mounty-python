@@ -278,10 +278,10 @@ class TestCleanSlate(unittest.TestCase):
         mock_config_manager.get_config.side_effect = lambda key: config_values[key]
 
         # Create the fstab repository
-        fstab_repository = FstabRepository(mock_config_manager, mount_prefix="/shares")
+        fstab_repository = FstabRepository(mock_config_manager)
 
         # Clean slate with the new mounts
-        fstab_repository.clean_slate(mounts)
+        fstab_repository.clean_slate(mounts, prefix="/shares")
 
         # Ensure that the mount information was removed when it is written back to the file
         expected_content = f"""

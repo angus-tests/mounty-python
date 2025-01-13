@@ -52,10 +52,9 @@ class FstabRepository(MountConfigRepository):
     NOTE: The FSTAB repository will never modify or delete system mounts
     """
 
-    def __init__(self, config_manager, mount_prefix="/shares"):
+    def __init__(self, config_manager):
         self.config_manager = config_manager
         self.fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
-        self.mount_prefix = mount_prefix
 
     def store_mount_information(self, mount: Mount):
         """
@@ -128,10 +127,10 @@ class FstabRepository(MountConfigRepository):
         with open(self.fstab_location, "w") as f:
             f.write(formatted)
 
-    def clean_slate(self, mounts: list[Mount]):
+    def clean_slate(self, mounts: list[Mount], prefix="/shares"):
         """
         Ensure the provided mounts are the only mounts on the system
-        (excluding mounts not within the mount prefix)
+        (excluding mounts not within the prefix)
         """
 
         # Get all the mounts on the system that match our prefix
@@ -140,10 +139,10 @@ class FstabRepository(MountConfigRepository):
             fstab = Fstab().read_file(f)
 
         # We want to preserve system mounts
-        system_mounts = [entry for entry in fstab.entries if not entry.dir.startswith(self.mount_prefix)]
+        system_mounts = [entry for entry in fstab.entries if not entry.dir.startswith(prefix)]
 
         # Create entries from the provided mounts (double check no system mounts are included here)
-        new_entries = [self._create_entry(mount) for mount in mounts if mount.mount_path.startswith(self.mount_prefix)]
+        new_entries = [self._create_entry(mount) for mount in mounts if mount.mount_path.startswith(prefix)]
 
         # Combine the system mounts and the new mounts
         fstab.entries = system_mounts + new_entries
