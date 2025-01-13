@@ -39,6 +39,8 @@ class MountingService:
         self._log_mounts("remove", desired_mounts, current_mounts)
         self._log_mounts("update", desired_mounts, current_mounts)
         self._log_mounts("orphans", desired_mounts, current_mounts, orphan_mounts, custom_message="Orphan mounts")
+        self._log_mounts("current", desired_mounts, current_mounts, custom_message="Current mounts")
+
         return True
 
     def _fetch_mount_data(self):
@@ -80,6 +82,8 @@ class MountingService:
             mounts = self._find_mounts_to_update(desired_mounts, current_mounts)
         elif action == "orphans":
             mounts = orphan_mounts
+        elif action == "current":
+            mounts = current_mounts
         else:
             raise ValueError(f"Unknown action: {action}")
 

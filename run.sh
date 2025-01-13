@@ -31,17 +31,17 @@ for arg in "$@"; do
 done
 
 ## Navigate to virtual environment directory
-#cd $VENV
-#
-## Create virtual environment
-#echo "Create venv"
-#python3 --version
-#python3 -m venv venv
-#. venv/bin/activate
-#
-## Install requirements
-#echo "Install requirements"
-#pip install -r requirements.txt
+cd $VENV
+
+# Create virtual environment
+echo "Create venv"
+python3 --version
+python3 -m venv venv
+. venv/bin/activate
+
+# Install requirements
+echo "Install requirements"
+pip install -r requirements.txt
 
 # Run the mount script
 echo "Run mount script"
