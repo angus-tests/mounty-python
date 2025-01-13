@@ -31,6 +31,11 @@ class MountRepositoryInterface(ABC):
         pass
 
     @abstractmethod
+    def get_orphan_mounts(self) -> list[Mount]:
+        """Fetch a list of mounts that are not present in config but are mounted on the system"""
+        pass
+
+    @abstractmethod
     def mount(self, mount: Mount):
         """
         mount a mount to the system
@@ -102,6 +107,17 @@ class MountRepository(MountRepositoryInterface):
         ]
 
         return mounts
+
+    def get_orphan_mounts(self) -> list[Mount]:
+
+        # Fetch all the mounts on the system from the config repo
+        all_system_mounts = self.mount_config_repository.get_all_system_mounts()
+
+        return [
+            mount
+            for mount in all_system_mounts
+            if mount.mount_path.startswith(self.mount_prefix) and not os.path.ismount(mount.mount_path)
+        ]
 
     def mount(self, mount: Mount):
         """

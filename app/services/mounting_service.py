@@ -35,7 +35,7 @@ class MountingService:
         self._log_mounts("add", desired_mounts, current_mounts)
         self._log_mounts("remove", desired_mounts, current_mounts)
         self._log_mounts("update", desired_mounts, current_mounts)
-
+        self._log_mounts("orphans", desired_mounts, current_mounts, custom_message="Orphan mounts")
         return True
 
     def _fetch_mount_data(self):
@@ -62,7 +62,7 @@ class MountingService:
         self._log_mounts(action, desired_mounts, current_mounts)
         return not operation(mounts)
 
-    def _log_mounts(self, action: str, desired_mounts, current_mounts):
+    def _log_mounts(self, action: str, desired_mounts, current_mounts, custom_message=None):
         """
         Log mount actions (add, remove, update) to provide an overview of planned operations.
         """
@@ -72,11 +72,15 @@ class MountingService:
             mounts = self._find_mounts_to_remove(desired_mounts, current_mounts)
         elif action == "update":
             mounts = self._find_mounts_to_update(desired_mounts, current_mounts)
+        elif action == "orphans":
+            mounts = self._find_orphan_mounts(current_mounts)
         else:
             raise ValueError(f"Unknown action: {action}")
 
+        title = f"Mounts to {action}" if custom_message is None else custom_message
+
         LogFacade.log_table_info(
-            f"Mounts to {action}",
+            title,
             ["Mount Path", "Actual Path"],
             [[mount.mount_path, mount.actual_path] for mount in mounts]
         )
@@ -267,3 +271,6 @@ class MountingService:
                         and desired_mount != current_mount):
                     mounts_to_update.append(desired_mount)
         return mounts_to_update
+
+    def _find_orphan_mounts(self, current_mounts):
+        return self.mount_repository.get_orphan_mounts()

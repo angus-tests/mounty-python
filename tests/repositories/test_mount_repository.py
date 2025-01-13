@@ -185,6 +185,52 @@ class TestGetDesiredMounts(unittest.TestCase):
         self.assertListEqual(expected, current_mounts)
 
 
+class TestGetOrphanMounts(unittest.TestCase):
+
+    @patch("os.path.ismount")
+    def test_get_orphan_mounts(self, mock_os_path_ismount):
+        """
+        Simulate a case where we have some mounts in the system
+        that are not in the desired mounts file
+        """
+
+        # Simulate a mix of our mounts with some system mounts
+        mock_config_repository = setup_mount_config_repo(
+            system_mounts=[
+                Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
+                Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
+                Mount(mount_path="/shares/orphan/path", actual_path="//Secret/share"),
+            ]
+        )
+
+        # Create a side effect for the ismount method
+        def ismount_side_effect(path):
+            return path != "/shares/orphan/path"
+
+        # Mock IsMount to return True for all mounts except the one we want to fail
+        mock_os_path_ismount.side_effect = ismount_side_effect
+
+        # Create a mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Create the MountRepo
+        mount_repo = MountRepository(
+            mock_config_manager,
+            mock_config_repository
+        )
+
+        # Run the get orphans method
+        orphan_mounts = mount_repo.get_orphan_mounts()
+
+        # Assert the list matches our shares
+        self.assertListEqual(
+            [
+                Mount(mount_path="/shares/orphan/path", actual_path="//Secret/share"),
+            ],
+            orphan_mounts
+        )
+
+
 class TestMount(unittest.TestCase):
 
     @patch("os.makedirs")
