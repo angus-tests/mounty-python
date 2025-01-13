@@ -162,7 +162,14 @@ class TestGetDesiredMounts(unittest.TestCase):
 
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)
-        mock_config_manager.get_config.return_value = "fake/path/to/desired/mounts.json"
+
+        config_values = {
+            "LINUX_SSH_USER": "dave",
+            "DESIRED_MOUNTS_FILE_PATH": "mounts.json"
+        }
+
+        # Use a lambda to return values based on the parameter
+        mock_config_manager.get_config.side_effect = lambda key: config_values[key]
 
         # Create the MountRepo
         mount_repo = MountRepository(
@@ -178,10 +185,69 @@ class TestGetDesiredMounts(unittest.TestCase):
                   actual_path="//ny334xx/EXAMPLE_LOCATION/PROD/ETC",
                   mount_type=MountType.WINDOWS),
             Mount(mount_path="/shares/inputs/another_example",
-                  actual_path="example:/abc/live/location/example",
+                  actual_path="dave@example:/abc/live/location/example",
                   mount_type=MountType.LINUX)
         ]
         # Assert the list is empty
+        self.assertListEqual(expected, current_mounts)
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_get_desired_mounts_linux(self, mock_json_open):
+        """
+        Check that when we get desired mounts, the linux mounts
+        will get populated with the SSH user
+        """
+
+        # Mock the json file
+        mock_json_open.return_value.read.return_value = json.dumps(
+            [
+                {
+                    "mount_path": "/shares/linux/inputs",
+                    "actual_path": "/linuxsever/inputs/folder",
+                    "mount_type": "fuse.sshfs",
+                },
+
+                {
+                    "mount_path": "/shares/linux/output",
+                    "actual_path": "/linuxsever/outputs/folder",
+                    "mount_type": "fuse.sshfs",
+                },
+            ]
+        )
+
+        # Mock the config repository
+        mock_config_repository = setup_mount_config_repo()
+
+        # Create a mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        config_values = {
+            "LINUX_SSH_USER": "dave",
+            "DESIRED_MOUNTS_FILE_PATH": "mounts.json"
+        }
+
+        # Use a lambda to return values based on the parameter
+        mock_config_manager.get_config.side_effect = lambda key: config_values[key]
+
+        # Create the MountRepo
+        mount_repo = MountRepository(
+            mock_config_manager,
+            mock_config_repository
+        )
+
+        # Run the get_current_mounts
+        current_mounts = mount_repo.get_desired_mounts()
+
+        expected = [
+            Mount(mount_path="/shares/linux/inputs",
+                  actual_path="dave@/linuxsever/inputs/folder",
+                  mount_type=MountType.LINUX),
+            Mount(mount_path="/shares/linux/output",
+                  actual_path="dave@/linuxsever/outputs/folder",
+                  mount_type=MountType.LINUX),
+        ]
+
+        # Assert the lists are equal
         self.assertListEqual(expected, current_mounts)
 
 

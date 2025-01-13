@@ -21,11 +21,6 @@ class Mount:
         Compare two mounts
         :param other: Another mount
         """
-        # TODO abstract this away?
-        # Remove the user from the SSH path
-        normalised_actual = re.sub(r".+?@", "", self.actual_path)
-        normalised_actual_other = re.sub(r".+?@", "", other.actual_path)
-
         return ((self.mount_path == other.mount_path)
-                and (normalised_actual == normalised_actual_other and self.mount_type == other.mount_type))
+                and (self.actual_path == other.actual_path and self.mount_type == other.mount_type))
 

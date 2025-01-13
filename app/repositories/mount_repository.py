@@ -4,7 +4,7 @@ import shutil
 import subprocess
 from abc import ABC, abstractmethod
 
-
+from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
@@ -101,10 +101,16 @@ class MountRepository(MountRepositoryInterface):
         with open(self.config_manager.get_config("DESIRED_MOUNTS_FILE_PATH"), "r") as f:
             mounts_data = json.load(f)
 
-        mounts = [
-            MountFactory.create_from_json(mount)
-            for mount in mounts_data
-        ]
+        mounts = []
+
+        for mount in mounts_data:
+
+            if mount["mount_type"] == MountType.LINUX.value:
+                # Add the linux user to the mount
+                mount["actual_path"] = f"{self.config_manager.get_config('LINUX_SSH_USER')}@{mount['actual_path']}"
+
+            # Append the mount to the list
+            mounts.append(MountFactory.create_from_json(mount))
 
         return mounts
 
