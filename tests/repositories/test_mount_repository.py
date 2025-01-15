@@ -294,46 +294,43 @@ class TestGetOrphanMounts(unittest.TestCase):
 
 
 class TestMount(unittest.TestCase):
+    def setUp(self):
+        """
+        Common setup for all tests.
+        """
+        self.mock_config_repository = setup_mount_config_repo(is_mounted=False)
+        self.mock_config_manager = MagicMock(spec=ConfigManager)
+
+        self.mount_repo = MountRepository(
+            self.mock_config_manager,
+            self.mock_config_repository
+        )
+
+        self.test_mount = Mount(
+            mount_path="/shares/example",
+            actual_path="//someServer/someShare",
+            mount_type=MountType.WINDOWS,
+        )
+
+    def _mock_subprocess_and_path(self, mock_subprocess_run, mock_os_path, returncode=0, path_exists=True):
+        """
+        Helper to mock subprocess.run and os.path.exists.
+        """
+        mock_subprocess_run.return_value = MagicMock(returncode=returncode)
+        mock_os_path.exists.return_value = path_exists
 
     @patch("os.makedirs")
     @patch("os.path")
     @patch("subprocess.run")
     def test_mount_success(self, mock_subprocess_run, mock_os_path, _mock_os_makedirs):
         """
-        Simulates a simple mount operation
+        Simulates a successful mount operation.
         """
+        self._mock_subprocess_and_path(mock_subprocess_run, mock_os_path, returncode=0, path_exists=True)
 
-        # Mock the config repository
-        mock_config_repository = setup_mount_config_repo(
-            is_mounted=False
-        )
+        self.mount_repo.mount(self.test_mount)
 
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        # Mock the subprocess.run method to a successful return
-        mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-        # Mock the OS module
-        mock_os_path.exists.return_value = True
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
-
-        # Run the mount with a simple mount
-        mount_repo.mount(
-            Mount(mount_path="/shares/example",
-                  actual_path="//someServer/someShare",
-                  mount_type=MountType.WINDOWS)
-        )
-
-        # Assert that the store mount information method on the config repository was called
-        mock_config_repository.store_mount_information.assert_called_once()
-
-        # Assert that subproccess.run was called with the correct arguments
+        self.mock_config_repository.store_mount_information.assert_called_once()
         mock_subprocess_run.assert_called_once_with(
             ["sudo", "mount", "/shares/example"], capture_output=True
         )
@@ -343,36 +340,14 @@ class TestMount(unittest.TestCase):
     @patch("subprocess.run")
     def test_mount_raises_exception(self, mock_subprocess_run, mock_os_path, _mock_os_makedirs):
         """
-        Simulates a mount operation that fails
+        Simulates a mount operation that fails.
         """
 
-        # Mock the config repository
-        mock_config_repository = setup_mount_config_repo(
-            is_mounted=False
-        )
-
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        # Mock the subprocess.run method to a failed run
-        mock_subprocess_run.return_value = MagicMock(returncode=2)
-
-        # Mock the OS module
-        mock_os_path.exists.return_value = True
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
+        # Make sure the return code is 2 (error)
+        self._mock_subprocess_and_path(mock_subprocess_run, mock_os_path, returncode=2, path_exists=True)
 
         with self.assertRaises(MountException):
-            # Run the mount with a simple mount
-            mount_repo.mount(
-                Mount(mount_path="/shares/example",
-                      actual_path="//someServer/someShare",
-                      mount_type=MountType.WINDOWS)
-            )
+            self.mount_repo.mount(self.test_mount)
 
 
 class TestUnmount(unittest.TestCase):
