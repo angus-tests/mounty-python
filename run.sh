@@ -2,15 +2,16 @@
 set -e
 
 VENV=/dexta/mounting/mounty-python
-DRY_RUN_ARG=""
+ARGS=""
 
 # Help function
 function show_help() {
   echo "Usage: $0 [OPTIONS]"
   echo ""
   echo "Options:"
-  echo "  --dry-run    Run mounty-python in dry-run mode."
-  echo "  --help       Show this help message."
+  echo "  --dry-run         Run the mount script in dry-run mode."
+  echo "  --unmount-all     Run the unmount_all function."
+  echo "  --help            Show this help message."
   exit 0
 }
 
@@ -18,7 +19,10 @@ function show_help() {
 for arg in "$@"; do
   case $arg in
     --dry-run)
-      DRY_RUN_ARG="--dry-run"
+      ARGS="--dry-run"
+      ;;
+    --unmount-all)
+      ARGS="--unmount-all"
       ;;
     --help)
       show_help
@@ -30,22 +34,22 @@ for arg in "$@"; do
   esac
 done
 
-## Navigate to virtual environment directory
+# Navigate to the virtual environment directory
 cd $VENV
 
-# Create virtual environment
-echo "Create venv"
+# Create and activate the virtual environment
+echo "Setting up virtual environment"
 python3 --version
 python3 -m venv venv
 . venv/bin/activate
 
 # Install requirements
-echo "Install requirements"
+echo "Installing requirements"
 pip install -r requirements.txt
 
-# Run the mount script
-echo "Run mount script"
-if python3 run.py $DRY_RUN_ARG; then
+# Run the main Python script
+echo "Running Python script with arguments: $ARGS"
+if python3 run.py $ARGS; then
   echo "Successful"
 else
   exit 1
