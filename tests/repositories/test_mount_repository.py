@@ -30,172 +30,124 @@ def setup_mount_config_repo(system_mounts: list[Mount] = None,
 
 class TestGetCurrentMounts(unittest.TestCase):
 
-    def test_get_current_mounts_only(self):
+    def setUp(self):
         """
-        This test simulates that the only mounts
-        on the system are our mounts (no system mounts)
+        Common setup for all tests.
         """
+        self.mock_config_manager = MagicMock(spec=ConfigManager)
 
-        # Simulate only two system mounts
-        mock_config_repository = setup_mount_config_repo(
-            system_mounts=[
-                Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
-                Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
-            ]
-        )
-
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
+    def run_test(self, system_mounts, expected_mounts):
+        """
+        Helper method to test `get_current_mounts` with various inputs.
+        """
+        # Simulate system mounts
+        mock_config_repository = setup_mount_config_repo(system_mounts=system_mounts)
 
         # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
+        mount_repo = MountRepository(self.mock_config_manager, mock_config_repository)
 
         # Run the get_current_mounts
         current_mounts = mount_repo.get_current_mounts()
 
-        # Assert the list matches our shares
-        self.assertListEqual(
-            [
-                Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
-                Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
-            ],
-            current_mounts
-        )
+        # Assert the list matches expected mounts
+        self.assertListEqual(expected_mounts, current_mounts)
+
+    def test_get_current_mounts_only(self):
+        """
+        Test when the system only has our mounts (no system mounts).
+        """
+        system_mounts = [
+            Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
+            Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
+        ]
+
+        self.run_test(system_mounts=system_mounts, expected_mounts=system_mounts)
 
     def test_get_current_mounts_with_some_system_mounts(self):
         """
-        This test will simulate that the system has some of our
-        mounts as well as some system mounts
+        Test when the system has a mix of our mounts and unrelated system mounts.
         """
+        system_mounts = [
+            Mount(mount_path="/user/important/thing", actual_path="//Secret/share/elsewhere"),
+            Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
+            Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
+            Mount(mount_path="/root/system/thing", actual_path="//Secret/share"),
+        ]
 
-        # Simulate a mix of our mounts with some system mounts
-        mock_config_repository = setup_mount_config_repo(
-            system_mounts=[
-                Mount(mount_path="/user/important/thing", actual_path="//Secret/share/elsewhere"),
-                Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
-                Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
-                Mount(mount_path="/root/system/thing", actual_path="//Secret/share"),
-            ]
-        )
+        expected_mounts = [
+            Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
+            Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
+        ]
 
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
-
-        # Run the get_current_mounts
-        current_mounts = mount_repo.get_current_mounts()
-
-        # Assert the list matches our shares
-        self.assertListEqual(
-            [
-                Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
-                Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
-            ],
-            current_mounts
-        )
+        self.run_test(system_mounts=system_mounts, expected_mounts=expected_mounts)
 
 
 class TestGetDesiredMounts(unittest.TestCase):
-
-    @patch("builtins.open", new_callable=mock_open, read_data='[]')
-    def test_get_desired_mounts_empty(self, mock_json_open):
+    def setUp(self):
         """
-        Simulate an empty desired mounts file
+        Common setup for all tests.
         """
+        self.mock_config_repository = setup_mount_config_repo()
+        self.mock_config_manager = MagicMock(spec=ConfigManager)
+        self.config_values = {
+            "LINUX_SSH_USER": "dave",
+            "DESIRED_MOUNTS_FILE_PATH": "mounts.json",
+        }
+        self.mock_config_manager.get_config.side_effect = lambda key: self.config_values[key]
+        self.mount_repo = MountRepository(self.mock_config_manager, self.mock_config_repository)
 
-        # We don't need a mock config repository for this test
-        mock_config_repository = setup_mount_config_repo()
-
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-        mock_config_manager.get_config.return_value = "fake/path/to/desired/mounts.json"
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
-
-        # Run the get_current_mounts
-        current_mounts = mount_repo.get_desired_mounts()
-
-        # Assert the list is empty
+    @patch("builtins.open", new_callable=mock_open, read_data="[]")
+    def test_get_desired_mounts_empty(self, _mock_json_open):
+        """
+        Simulate an empty desired mounts file.
+        """
+        current_mounts = self.mount_repo.get_desired_mounts()
         self.assertListEqual([], current_mounts)
 
     @patch("builtins.open", new_callable=mock_open)
     def test_get_desired_mounts_with_content(self, mock_json_open):
         """
-        Simulate a desired mounts file with a few mounts
+        Simulate a desired mounts file with a few mounts.
         """
 
-        # Mock the json file
+        # Mock the file to return some JSON
         mock_json_open.return_value.read.return_value = json.dumps(
             [
                 {
                     "mount_path": "/shares/outputs/example_data",
                     "actual_path": "//ny334xx/EXAMPLE_LOCATION/PROD/ETC",
-                    "mount_type": "cifs"
+                    "mount_type": "cifs",
                 },
-
                 {
                     "mount_path": "/shares/inputs/another_example",
                     "actual_path": "example:/abc/live/location/example",
-                    "mount_type": "fuse.sshfs"
-                }
-
+                    "mount_type": "fuse.sshfs",
+                },
             ]
         )
 
-        # We don't need a mock config repository for this test
-        mock_config_repository = setup_mount_config_repo()
-
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        config_values = {
-            "LINUX_SSH_USER": "dave",
-            "DESIRED_MOUNTS_FILE_PATH": "mounts.json"
-        }
-
-        # Use a lambda to return values based on the parameter
-        mock_config_manager.get_config.side_effect = lambda key: config_values[key]
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
-
-        # Run the get_current_mounts
-        current_mounts = mount_repo.get_desired_mounts()
-
         expected = [
-            Mount(mount_path="/shares/outputs/example_data",
-                  actual_path="//ny334xx/EXAMPLE_LOCATION/PROD/ETC",
-                  mount_type=MountType.WINDOWS),
-            Mount(mount_path="/shares/inputs/another_example",
-                  actual_path="dave@example:/abc/live/location/example",
-                  mount_type=MountType.LINUX)
+            Mount(
+                mount_path="/shares/outputs/example_data",
+                actual_path="//ny334xx/EXAMPLE_LOCATION/PROD/ETC",
+                mount_type=MountType.WINDOWS,
+            ),
+            Mount(
+                mount_path="/shares/inputs/another_example",
+                actual_path="dave@example:/abc/live/location/example",
+                mount_type=MountType.LINUX,
+            ),
         ]
-        # Assert the list is empty
+
+        current_mounts = self.mount_repo.get_desired_mounts()
         self.assertListEqual(expected, current_mounts)
 
     @patch("builtins.open", new_callable=mock_open)
     def test_get_desired_mounts_linux(self, mock_json_open):
         """
-        Check that when we get desired mounts, the linux mounts
-        will get populated with the SSH user
+        Check that when we get desired mounts, the Linux mounts
+        will get populated with the SSH user.
         """
-
-        # Mock the json file
         mock_json_open.return_value.read.return_value = json.dumps(
             [
                 {
@@ -203,7 +155,6 @@ class TestGetDesiredMounts(unittest.TestCase):
                     "actual_path": "/linuxsever/inputs/folder",
                     "mount_type": "fuse.sshfs",
                 },
-
                 {
                     "mount_path": "/shares/linux/output",
                     "actual_path": "/linuxsever/outputs/folder",
@@ -212,39 +163,20 @@ class TestGetDesiredMounts(unittest.TestCase):
             ]
         )
 
-        # Mock the config repository
-        mock_config_repository = setup_mount_config_repo()
-
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        config_values = {
-            "LINUX_SSH_USER": "dave",
-            "DESIRED_MOUNTS_FILE_PATH": "mounts.json"
-        }
-
-        # Use a lambda to return values based on the parameter
-        mock_config_manager.get_config.side_effect = lambda key: config_values[key]
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
-
-        # Run the get_current_mounts
-        current_mounts = mount_repo.get_desired_mounts()
-
         expected = [
-            Mount(mount_path="/shares/linux/inputs",
-                  actual_path="dave@/linuxsever/inputs/folder",
-                  mount_type=MountType.LINUX),
-            Mount(mount_path="/shares/linux/output",
-                  actual_path="dave@/linuxsever/outputs/folder",
-                  mount_type=MountType.LINUX),
+            Mount(
+                mount_path="/shares/linux/inputs",
+                actual_path="dave@/linuxsever/inputs/folder",
+                mount_type=MountType.LINUX,
+            ),
+            Mount(
+                mount_path="/shares/linux/output",
+                actual_path="dave@/linuxsever/outputs/folder",
+                mount_type=MountType.LINUX,
+            ),
         ]
 
-        # Assert the lists are equal
+        current_mounts = self.mount_repo.get_desired_mounts()
         self.assertListEqual(expected, current_mounts)
 
 
@@ -252,8 +184,8 @@ class TestGetOrphanMounts(unittest.TestCase):
 
     def test_get_orphan_mounts(self):
         """
-        Simulate a case where we have some mounts in the system
-        that are not in the desired mounts file
+        Simulate a case where we have some mounts in the system config
+        that are not mounted on the system.
         """
 
         # Simulate a mix of our mounts with some system mounts
@@ -430,7 +362,6 @@ class TestUnmount(unittest.TestCase):
 
         with self.assertRaises(UnmountException):
             self.mount_repo.unmount("/shares/example")
-
 
 
 if __name__ == '__main__':
