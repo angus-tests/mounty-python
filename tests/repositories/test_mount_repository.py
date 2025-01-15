@@ -417,7 +417,7 @@ class TestUnmountAll(unittest.TestCase):
         self.mount_repo.get_current_mounts = MagicMock(return_value=mounts_to_unmount)
 
         # Simulate a failure on the second unmount operation
-        mock_perform_unmount.side_effect = [None, UnmountException("Unmount failed")]
+        mock_perform_unmount.side_effect = [None, UnmountException("Unmount failed for some reason")]
         mock_remove_mount_point.return_value = None
 
         # Call unmount_all

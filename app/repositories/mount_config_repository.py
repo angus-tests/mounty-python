@@ -149,7 +149,8 @@ class FstabRepository(MountConfigRepository):
 
     def is_mounted(self, mount_path: str) -> bool:
         """
-        Use the proc mounts file to check if the mount is currently mounted
+        Will return True if the mount is currently mounted
+        to do this we need to check the /proc/mounts file
         """
 
         # Read the file
