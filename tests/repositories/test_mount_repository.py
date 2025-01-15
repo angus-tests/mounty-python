@@ -304,7 +304,9 @@ class TestMount(unittest.TestCase):
         """
 
         # Mock the config repository
-        mock_config_repository = setup_mount_config_repo()
+        mock_config_repository = setup_mount_config_repo(
+            is_mounted=False
+        )
 
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)
@@ -345,7 +347,9 @@ class TestMount(unittest.TestCase):
         """
 
         # Mock the config repository
-        mock_config_repository = setup_mount_config_repo()
+        mock_config_repository = setup_mount_config_repo(
+            is_mounted=False
+        )
 
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)

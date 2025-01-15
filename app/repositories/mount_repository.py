@@ -132,92 +132,100 @@ class MountRepository(MountRepositoryInterface):
         Add a mount to the system
         """
 
-        # TODO abstract FS operations to another class
-        # Create the mount point if it doesn't exist
-        if not os.path.exists(f"{mount.mount_path}"):
-            os.makedirs(mount.mount_path, exist_ok=True)
+        # Create the mount point
+        self._add_mount_point(mount.mount_path)
 
         # Store this mount information on the system to persist
         self.mount_config_repository.store_mount_information(mount)
 
         # Call the mount command
-        result = subprocess.run(["sudo", "mount", mount.mount_path], capture_output=True)
-
-        # Check if the mount was successful
-        if result.returncode != 0:
-            # Raise an exception
-            raise MountException(result.stderr)
+        self._perform_mount(mount.mount_path)
 
     def unmount(self, mount_path: str):
         """
         Remove a mount from the system
         :param mount_path: The local path of the mount to unmount
         """
-
-        # Remove from fstab
+        # Remove the mount information from the config
         self.mount_config_repository.remove_mount_information(mount_path)
 
+        # Unmount
+        self._perform_unmount(mount_path)
+
+        # Remove the mount point
+        self._remove_mount_point(mount_path)
+
+    def unmount_all(self) -> list[Mount]:
+        """
+        Unmount all mounts from the system that start with our mount prefix.
+        :return: List of failed mounts
+        """
+
+        # Fetch all the mounts on the system from the config repo
+        all_mounts = self.get_current_mounts()
+
+        # Remove all the mounts from the config
+        self.mount_config_repository.remove_mounts(all_mounts)
+
+        failed_to_unmount = []
+
+        for mount in all_mounts:
+            try:
+                self._perform_unmount(mount.mount_path)
+                self._remove_mount_point(mount.mount_path)
+            except UnmountException as e:
+                failed_to_unmount.append(mount)
+                LogFacade.error(f"Failed to unmount {mount.mount_path}: {e}")
+
+        return failed_to_unmount
+
+    def _perform_unmount(self, mount_path: str):
+        """
+        Perform the actual unmount operation and handle errors.
+        :param mount_path: The local path of the mount to unmount
+        :return: True if successful, False otherwise
+        """
         if not self.mount_config_repository.is_mounted(mount_path):
             LogFacade.warning(f"Attempted to unmount {mount_path} but it was already unmounted")
-            return
+            return True
 
-        # Perform unmount
-        umount_result = subprocess.run(["umount", mount_path])
-
-        # Check if the unmount was successful
+        umount_result = subprocess.run(["sudo", "umount", mount_path], capture_output=True)
         if umount_result.returncode != 0:
+            raise UnmountException(umount_result.stderr)
 
-            raise UnmountException(f"Error unmounting - {umount_result.stderr}")
+        return True
 
-        # TODO abstract shutil operations to another class
-        # Remove the mount point
+    def _perform_mount(self, mount_path: str):
+        """
+        Perform the actual mount operation and handle errors.
+        :param mount_path: The local path of the mount to mount
+        """
+        if self.mount_config_repository.is_mounted(mount_path):
+            LogFacade.warning(f"Attempted to mount {mount_path} but it was already mounted")
+            return True
+
+        mount_result = subprocess.run(["sudo", "mount", mount_path], capture_output=True)
+        if mount_result.returncode != 0:
+            raise MountException(mount_result.stderr)
+
+    def _remove_mount_point(self, mount_path: str):
+        """
+        Remove the mount point directory.
+        :param mount_path: The path to remove
+        """
         try:
             shutil.rmtree(mount_path)
         except Exception as e:
-            raise UnmountException(f"Error removing mount point - {e}")
+            raise UnmountException(f"Error removing mount point {mount_path}: {e}")
 
-    def unmount_all(self):
+    def _add_mount_point(self, mount_path):
         """
-        Unmount all mounts from the system
-        that start with our mount prefix and keep the rest
+        Add a mount point directory.
+        :param mount_path: The path to add
         """
-
-        # TODO test this method
-
-        # Get all our mounts
-        all_mounts = self.get_current_mounts()
-
-        # Remove these mounts from the system
-        self.mount_config_repository.remove_mounts(all_mounts)
-
-        # Store the failed mounts
-        failed_to_unmount = []
-
-        # TODO clean up this code
-
-        # Go through each mount and unmount
-        for mount in all_mounts:
-            umount_result = subprocess.run(["umount", mount.mount_path])
-            if umount_result.returncode != 0:
-
-                if not self.mount_config_repository.is_mounted(mount.mount_path):
-                    LogFacade.warning(f"Attempted to unmount {mount.mount_path} but it was already unmounted")
-                    try:
-                        shutil.rmtree(mount.mount_path)
-                    except Exception:
-                        LogFacade.error(f"Failed to remove mount point {mount.mount_path}")
-                        failed_to_unmount.append(mount)
-                else:
-                    failed_to_unmount.append(mount)
-            else:
-                try:
-                    shutil.rmtree(mount.mount_path)
-                except Exception:
-                    LogFacade.error(f"Failed to remove mount point {mount.mount_path}")
-                    failed_to_unmount.append(mount)
-                LogFacade.info(f"Unmounted {mount.mount_path} successfully")
-
-        # Return a list of failed mounts
-        return failed_to_unmount
-
-
+        try:
+            # Create the mount point if it doesn't exist
+            if not os.path.exists(mount_path):
+                os.makedirs(mount_path, exist_ok=True)
+        except Exception as e:
+            raise MountException(f"Error adding mount point {mount_path}: {e}")

@@ -118,7 +118,7 @@ class MountingService:
         Mount a directory
         :return True if the mount was mounted successfully
         """
-        LogFacade.info(f"Mounting {mount.mount_path} -> {mount.actual_path}")
+        LogFacade.info(f"Mounting {mount.mount_path} -> {mount.actual_path} ...")
         try:
             self.mount_repository.mount(mount)
         except MountException as e:
@@ -131,29 +131,11 @@ class MountingService:
         Unmount a directory
         :return True if the mount was unmounted successfully
         """
-        LogFacade.info(f"Unmounting {mount.mount_path}")
+        LogFacade.info(f"Unmounting {mount.mount_path} ...")
         try:
             self.mount_repository.unmount(mount.mount_path)
         except UnmountException as e:
             LogFacade.error(f"Failed to unmount {mount.mount_path}: {e}")
-            return False
-        return True
-
-    def _update_mount(self, mount: Mount) -> bool:
-        """
-        Update an existing mount
-        this will use the mount path to remove the mount,
-        then remount the mount with the new details
-        :return True if the mount was updated successfully
-        """
-        LogFacade.info(
-            f"Updating {mount.mount_path}")
-        try:
-            self.mount_repository.unmount(mount.mount_path)
-            self.mount_repository.mount(mount)
-        except (MountException, UnmountException) as e:
-            LogFacade.error(
-                f"Failed to update {mount.mount_path}: {e}")
             return False
         return True
 
