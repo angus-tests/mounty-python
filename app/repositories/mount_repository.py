@@ -184,7 +184,6 @@ class MountRepository(MountRepositoryInterface):
 
         return failed_to_unmount
 
-
     def _perform_unmount(self, mount_path: str):
         """
         Perform the actual unmount operation and handle errors.

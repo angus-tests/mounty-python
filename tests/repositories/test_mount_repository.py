@@ -364,5 +364,84 @@ class TestUnmount(unittest.TestCase):
             self.mount_repo.unmount("/shares/example")
 
 
+class TestUnmountAll(unittest.TestCase):
+
+    def setUp(self):
+        """
+        Common setup for all unmount tests.
+        """
+        self.mock_config_manager = MagicMock(spec=ConfigManager)
+        self.mock_config_repository = MagicMock(spec=MountConfigRepository)
+        self.mount_repo = MountRepository(self.mock_config_manager, self.mock_config_repository)
+
+    @patch.object(MountRepository, '_perform_unmount')
+    @patch.object(MountRepository, '_remove_mount_point')
+    def test_unmount_all_success(self, mock_remove_mount_point, mock_perform_unmount):
+        """
+        Test the unmount_all method when all unmount operations are successful.
+        """
+
+        # Define the mounts to be unmounted
+        mounts_to_unmount = [
+            Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
+            Mount(mount_path="/shares/our/share/2", actual_path="//SomeServer/Somewhere")
+        ]
+
+        # Mock the behavior of get_current_mounts
+        self.mount_repo.get_current_mounts = MagicMock(return_value=mounts_to_unmount)
+
+        # Simulate no failure during unmounting
+        mock_perform_unmount.return_value = None
+        mock_remove_mount_point.return_value = None
+
+        # Call unmount_all
+        failed_mounts = self.mount_repo.unmount_all()
+
+        # Assert that no mounts failed to unmount
+        self.assertListEqual(failed_mounts, [])
+
+    @patch.object(MountRepository, '_perform_unmount')
+    @patch.object(MountRepository, '_remove_mount_point')
+    def test_unmount_all_failure(self, mock_remove_mount_point, mock_perform_unmount):
+        """
+        Test the unmount_all method when some unmount operations fail.
+        """
+
+        # Define the mounts to be unmounted
+        mounts_to_unmount = [
+            Mount(mount_path="/shares/our/share/1", actual_path="//SomeServer/Somewhere"),
+            Mount(mount_path="/shares/our/share/2", actual_path="//SomeServer/Somewhere")
+        ]
+
+        # Mock the behavior of get_current_mounts
+        self.mount_repo.get_current_mounts = MagicMock(return_value=mounts_to_unmount)
+
+        # Simulate a failure on the second unmount operation
+        mock_perform_unmount.side_effect = [None, UnmountException("Unmount failed")]
+        mock_remove_mount_point.return_value = None
+
+        # Call unmount_all
+        failed_mounts = self.mount_repo.unmount_all()
+
+        # Assert the second mount failed to unmount
+        self.assertListEqual(failed_mounts, [mounts_to_unmount[1]])
+
+    @patch.object(MountRepository, '_perform_unmount')
+    @patch.object(MountRepository, '_remove_mount_point')
+    def test_unmount_all_no_mounts(self, mock_remove_mount_point, mock_perform_unmount):
+        """
+        Test the unmount_all method when there are no mounts to unmount.
+        """
+
+        # Mock the behavior of get_current_mounts to return an empty list
+        self.mount_repo.get_current_mounts = MagicMock(return_value=[])
+
+        # Call unmount_all
+        failed_mounts = self.mount_repo.unmount_all()
+
+        # Assert that the returned list is empty
+        self.assertListEqual(failed_mounts, [])
+
+
 if __name__ == '__main__':
     unittest.main()
