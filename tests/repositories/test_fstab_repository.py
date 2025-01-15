@@ -77,13 +77,13 @@ class TestStoreMountInformation(unittest.TestCase):
         # Mock the FSTAB content
         mock_fstab_open.return_value.read.return_value = f"""
         /mnt/windows /system/mounts/windows cifs credentials=/path/to/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
-        ben@/mnt/linux /system/mounts/linux fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001 0 0
+        {linux_user}@/mnt/linux /system/mounts/linux fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001 0 0
         """
 
         # Create our mount
         mount = FakeMountFactory.linux_mount(
             mount_path="/shares/linux",
-            actual_path="/mnt/linux/folder"
+            actual_path=f"{linux_user}@/mnt/linux/new"
         )
 
         mock_config_manager = MagicMock(spec=ConfigManager)
@@ -108,8 +108,8 @@ class TestStoreMountInformation(unittest.TestCase):
         # Assert the content was written correctly
         expected_content = f"""
         /mnt/windows /system/mounts/windows cifs credentials=/path/to/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
-        ben@/mnt/linux /system/mounts/linux fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001 0 0
-        {linux_user}@/mnt/linux/folder /shares/linux fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
+        {linux_user}@/mnt/linux /system/mounts/linux fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001 0 0
+        {linux_user}@/mnt/linux/new /shares/linux fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
         """
 
         # Format the expected and actual to make them comparable
