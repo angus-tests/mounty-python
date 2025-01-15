@@ -11,15 +11,20 @@ from app.repositories.mount_repository import MountRepository
 from app.util.config import ConfigManager
 
 
-def setup_mount_config_repo(system_mounts: list[Mount] = None, remove_failures: list[Mount] = None):
+def setup_mount_config_repo(system_mounts: list[Mount] = None,
+                            remove_failures: list[Mount] = None,
+                            is_mounted: bool = True):
+
     """
     Helper method to set up a mock repository
     :param system_mounts - Optionally specify fake system mount info this mock should return
     :param remove_failures - Optionally specify a list of mounts that the repo failed to remove from the system
+    :param is_mounted - Optionally specify if a mount is mounted
     """
     mock_config_repository = MagicMock(spec=MountConfigRepository)
     mock_config_repository.get_all_system_mounts.return_value = system_mounts or []
     mock_config_repository.remove_mounts.return_value = remove_failures or []
+    mock_config_repository.is_mounted.return_value = is_mounted
     return mock_config_repository
 
 
@@ -38,9 +43,6 @@ class TestGetCurrentMounts(unittest.TestCase):
                 Mount(mount_path="/shares/our/share2/2", actual_path="//SomeServer/Somewhere"),
             ]
         )
-
-        # Mock IsMount to return True
-        mock_config_repository.is_mounted.return_value = True
 
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)
@@ -78,9 +80,6 @@ class TestGetCurrentMounts(unittest.TestCase):
                 Mount(mount_path="/root/system/thing", actual_path="//Secret/share"),
             ]
         )
-
-        # Mock IsMount to return True
-        mock_config_repository.is_mounted.return_value = True
 
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)
@@ -251,8 +250,7 @@ class TestGetDesiredMounts(unittest.TestCase):
 
 class TestGetOrphanMounts(unittest.TestCase):
 
-    @patch("os.path.ismount")
-    def test_get_orphan_mounts(self, mock_os_path_ismount):
+    def test_get_orphan_mounts(self):
         """
         Simulate a case where we have some mounts in the system
         that are not in the desired mounts file
@@ -272,7 +270,7 @@ class TestGetOrphanMounts(unittest.TestCase):
             return path != "/shares/orphan/path"
 
         # Mock IsMount to return True for all mounts except the one we want to fail
-        mock_os_path_ismount.side_effect = ismount_side_effect
+        mock_config_repository.is_mounted.side_effect = ismount_side_effect
 
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)
@@ -375,10 +373,9 @@ class TestMount(unittest.TestCase):
 
 class TestUnmount(unittest.TestCase):
 
-    @patch("os.path.ismount")
     @patch("shutil.rmtree")
     @patch("subprocess.run")
-    def test_unmount_success(self, mock_subprocess_run, mock_shutil_rmtree, mock_os_path_ismount):
+    def test_unmount_success(self, mock_subprocess_run, mock_shutil_rmtree):
         """
         Simulates a simple unmount operation
         """
@@ -391,9 +388,6 @@ class TestUnmount(unittest.TestCase):
 
         # Mock the subprocess.run method to a successful return
         mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-        # Mock the ismount method to return True
-        mock_os_path_ismount.return_value = True
 
         # Create the MountRepo
         mount_repo = MountRepository(
@@ -410,10 +404,9 @@ class TestUnmount(unittest.TestCase):
         # Assert the mount point was removed
         mock_shutil_rmtree.assert_called_once_with("/shares/example")
 
-    @patch("os.path.ismount")
     @patch("shutil.rmtree")
     @patch("subprocess.run")
-    def test_unmount_raises_exception(self, mock_subprocess_run, _mock_shutil_rmtree, mock_os_path_ismount):
+    def test_unmount_raises_exception(self, mock_subprocess_run, _mock_shutil_rmtree):
         """
         Simulates an unmount operation that fails
         """
@@ -424,8 +417,6 @@ class TestUnmount(unittest.TestCase):
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)
 
-        # Mock the ismount method to return True
-        mock_os_path_ismount.return_value = True
 
         # Mock the subprocess.run method to a failed run
         mock_subprocess_run.return_value = MagicMock(returncode=2)
@@ -440,10 +431,9 @@ class TestUnmount(unittest.TestCase):
             # Assert the mount point was removed
             mount_repo.unmount("/shares/example")
 
-    @patch("os.path.ismount")
     @patch("shutil.rmtree")
     @patch("subprocess.run")
-    def test_unmount_raises_exception_with_remove_mount_point(self, mock_subprocess_run, mock_shutil_rmtree, mock_os_path_ismount):
+    def test_unmount_raises_exception_with_remove_mount_point(self, mock_subprocess_run, mock_shutil_rmtree):
         """
         Simulates an unmount operation that fails on
         removing the mount point
@@ -455,8 +445,6 @@ class TestUnmount(unittest.TestCase):
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)
 
-        # Mock the ismount method to return True
-        mock_os_path_ismount.return_value = True
 
         # Mock the subprocess.run method to a successful run
         mock_subprocess_run.return_value = MagicMock(returncode=0)

@@ -86,7 +86,7 @@ class MountRepository(MountRepositoryInterface):
 
         # Filter out the mounts that don't start with our mount prefix
         for mount in all_system_mounts:
-            is_mount = self.mount_config_repository.is_mounted(mount)
+            is_mount = self.mount_config_repository.is_mounted(mount.mount_path)
 
             if mount.mount_path.startswith(self.mount_prefix) and is_mount:
                 current_mounts.append(mount)
@@ -124,7 +124,7 @@ class MountRepository(MountRepositoryInterface):
         return [
             mount
             for mount in all_system_mounts
-            if mount.mount_path.startswith(self.mount_prefix) and not os.path.ismount(mount.mount_path)
+            if mount.mount_path.startswith(self.mount_prefix) and not self.mount_config_repository.is_mounted(mount.mount_path)
         ]
 
     def mount(self, mount: Mount):
@@ -157,7 +157,7 @@ class MountRepository(MountRepositoryInterface):
         # Remove from fstab
         self.mount_config_repository.remove_mount_information(mount_path)
 
-        if not os.path.ismount(mount_path):
+        if not self.mount_config_repository.is_mounted(mount_path):
             LogFacade.warning(f"Attempted to unmount {mount_path} but it was already unmounted")
             return
 
@@ -200,7 +200,7 @@ class MountRepository(MountRepositoryInterface):
             umount_result = subprocess.run(["umount", mount.mount_path])
             if umount_result.returncode != 0:
 
-                if not os.path.ismount(mount.mount_path):
+                if not self.mount_config_repository.is_mounted(mount.mount_path):
                     LogFacade.warning(f"Attempted to unmount {mount.mount_path} but it was already unmounted")
                     try:
                         shutil.rmtree(mount.mount_path)

@@ -30,7 +30,7 @@ class MountConfigRepository(ABC):
         pass
 
     @abstractmethod
-    def is_mounted(self, mount: Mount) -> bool:
+    def is_mounted(self, mount_path: str) -> bool:
         """Return True if the mount is currently mounted"""
         pass
 
@@ -147,7 +147,7 @@ class FstabRepository(MountConfigRepository):
             for entry in fstab.entries
         ]
 
-    def is_mounted(self, mount: Mount) -> bool:
+    def is_mounted(self, mount_path: str) -> bool:
         """
         Use the proc mounts file to check if the mount is currently mounted
         """
@@ -156,7 +156,7 @@ class FstabRepository(MountConfigRepository):
         with open(self.proc_mounts_location, "r") as f:
             fstab = Fstab().read_file(f)
 
-        return any([entry.dir == mount.mount_path for entry in fstab.entries])
+        return any([entry.dir == mount_path for entry in fstab.entries])
 
     def remove_mounts(self, mounts: list[Mount]):
         """
