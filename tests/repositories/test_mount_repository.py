@@ -377,39 +377,37 @@ class TestMount(unittest.TestCase):
 
 class TestUnmount(unittest.TestCase):
 
+    def setUp(self):
+        """
+        Common setup for all tests.
+        """
+        self.mock_config_repository = setup_mount_config_repo()
+        self.mock_config_manager = MagicMock(spec=ConfigManager)
+
+        self.mount_repo = MountRepository(
+            self.mock_config_manager,
+            self.mock_config_repository
+        )
+
+    def _mock_subprocess_and_exists(self, mock_subprocess_run, mock_os_path_exists, returncode=0, path_exists=True):
+        """
+        Helper to mock subprocess.run and os.path.exists.
+        """
+        mock_subprocess_run.return_value = MagicMock(returncode=returncode)
+        mock_os_path_exists.return_value = path_exists
+
     @patch("os.path.exists")
     @patch("shutil.rmtree")
     @patch("subprocess.run")
     def test_unmount_success(self, mock_subprocess_run, mock_shutil_rmtree, mock_os_path_exists):
         """
-        Simulates a simple unmount operation
+        Simulates a simple unmount operation.
         """
+        self._mock_subprocess_and_exists(mock_subprocess_run, mock_os_path_exists, returncode=0, path_exists=False)
 
-        # Mock the config repository
-        mock_config_repository = setup_mount_config_repo()
+        self.mount_repo.unmount("/shares/example")
 
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        # Mock the subprocess.run method to a successful return
-        mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-        # Mock the os.path.exists method to return False
-        mock_os_path_exists.return_value = False
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
-
-        # Run the unmount with a simple mount
-        mount_repo.unmount("/shares/example")
-
-        # Assert that the remove_mount info method on the config repository was called
-        mock_config_repository.remove_mount_information.assert_called_once()
-
-        # Assert the mount point was removed
+        self.mock_config_repository.remove_mount_information.assert_called_once()
         mock_shutil_rmtree.assert_called_once_with("/shares/example")
 
     @patch("os.path.exists")
@@ -417,67 +415,28 @@ class TestUnmount(unittest.TestCase):
     @patch("subprocess.run")
     def test_unmount_raises_exception(self, mock_subprocess_run, _mock_shutil_rmtree, mock_os_path_exists):
         """
-        Simulates an unmount operation that fails
+        Simulates an unmount operation that fails.
         """
 
-        # Mock the config repository
-        mock_config_repository = setup_mount_config_repo()
-
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        # Mock the subprocess.run method to a failed run
-        mock_subprocess_run.return_value = MagicMock(returncode=2)
-
-        # Mock the os.path.exists method to return False
-        mock_os_path_exists.return_value = False
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
+        # Make sure the return code is 2 (error)
+        self._mock_subprocess_and_exists(mock_subprocess_run, mock_os_path_exists, returncode=2, path_exists=False)
 
         with self.assertRaises(UnmountException):
-            # Assert the mount point was removed
-            mount_repo.unmount("/shares/example")
+            self.mount_repo.unmount("/shares/example")
 
     @patch("os.path.exists")
     @patch("shutil.rmtree")
     @patch("subprocess.run")
     def test_unmount_raises_exception_with_remove_mount_point(self, mock_subprocess_run, mock_shutil_rmtree, mock_os_path_exists):
         """
-        Simulates an unmount operation that fails on
-        removing the mount point
+        Simulates an unmount operation that fails on removing the mount point.
         """
+        self._mock_subprocess_and_exists(mock_subprocess_run, mock_os_path_exists, returncode=0, path_exists=False)
 
-        # Mock the config repository
-        mock_config_repository = setup_mount_config_repo()
-
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        # Mock the os.path.exists method to return False
-        mock_os_path_exists.return_value = False
-
-        # Mock the subprocess.run method to a successful run
-        mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-        # Mock the shutil method to raise an exception
-        def raise_fake_permission_error(*args, **kwargs):
-            raise PermissionError("Cannot remove directory for some reason")
-
-        mock_shutil_rmtree.side_effect = raise_fake_permission_error
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
+        mock_shutil_rmtree.side_effect = PermissionError("Cannot remove directory for some reason")
 
         with self.assertRaises(UnmountException):
-            # Assert the mount point was removed
-            mount_repo.unmount("/shares/example")
+            self.mount_repo.unmount("/shares/example")
 
     @patch("os.listdir")
     @patch("os.path.exists")
@@ -485,34 +444,18 @@ class TestUnmount(unittest.TestCase):
     @patch("subprocess.run")
     def test_unmount_with_contents_in_mount_point(self, mock_subprocess_run, _mock_shutil_rmtree, mock_os_path_exists, mock_listdir):
         """
-        Simulates an unmount operation that fails because the
-        mount point has contents
+        Simulates an unmount operation that fails because the mount point has contents.
         """
 
-        # Mock the config repository
-        mock_config_repository = setup_mount_config_repo()
+        # By making path_exists True, we simulate that the mount point exists
+        self._mock_subprocess_and_exists(mock_subprocess_run, mock_os_path_exists, returncode=0, path_exists=True)
 
-        # Create a mock config manager
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        # Mock the os.path.exists method to return True
-        mock_os_path_exists.return_value = True
-
-        # Mock listdir to return a list of files
+        # We then mock the mount point containing files
         mock_listdir.return_value = ["file1.txt", "file2.txt"]
 
-        # Mock the subprocess.run method to a successful run
-        mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-        # Create the MountRepo
-        mount_repo = MountRepository(
-            mock_config_manager,
-            mock_config_repository
-        )
-
         with self.assertRaises(UnmountException):
-            # Assert the mount point was removed
-            mount_repo.unmount("/shares/example")
+            self.mount_repo.unmount("/shares/example")
+
 
 
 if __name__ == '__main__':
