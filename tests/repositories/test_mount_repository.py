@@ -25,8 +25,7 @@ def setup_mount_config_repo(system_mounts: list[Mount] = None, remove_failures: 
 
 class TestGetCurrentMounts(unittest.TestCase):
 
-    @patch("os.path.ismount")
-    def test_get_current_mounts_only(self, mock_os_path_ismount):
+    def test_get_current_mounts_only(self):
         """
         This test simulates that the only mounts
         on the system are our mounts (no system mounts)
@@ -41,7 +40,7 @@ class TestGetCurrentMounts(unittest.TestCase):
         )
 
         # Mock IsMount to return True
-        mock_os_path_ismount.return_value = True
+        mock_config_repository.is_mounted.return_value = True
 
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)
@@ -64,8 +63,7 @@ class TestGetCurrentMounts(unittest.TestCase):
             current_mounts
         )
 
-    @patch("os.path.ismount")
-    def test_get_current_mounts_with_some_system_mounts(self, mock_os_path_ismount):
+    def test_get_current_mounts_with_some_system_mounts(self):
         """
         This test will simulate that the system has some of our
         mounts as well as some system mounts
@@ -82,7 +80,7 @@ class TestGetCurrentMounts(unittest.TestCase):
         )
 
         # Mock IsMount to return True
-        mock_os_path_ismount.return_value = True
+        mock_config_repository.is_mounted.return_value = True
 
         # Create a mock config manager
         mock_config_manager = MagicMock(spec=ConfigManager)

@@ -92,7 +92,8 @@ class TestStoreMountInformation(unittest.TestCase):
         config_values = {
             "LINUX_SSH_LOCATION": linux_ssh_location,
             "LINUX_SSH_USER": linux_user,
-            "FSTAB_LOCATION": "/etc/fstab"
+            "FSTAB_LOCATION": "/etc/fstab",
+            "PROC_MOUNTS_LOCATION": "/proc/mounts"
         }
 
         # Use a lambda to return values based on the parameter

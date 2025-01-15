@@ -30,6 +30,11 @@ class MountConfigRepository(ABC):
         pass
 
     @abstractmethod
+    def is_mounted(self, mount: Mount) -> bool:
+        """Return True if the mount is currently mounted"""
+        pass
+
+    @abstractmethod
     def remove_mounts(self, mounts: list[Mount]):
         """
         Remove a list of mounts from the system
@@ -46,6 +51,7 @@ class FstabRepository(MountConfigRepository):
     def __init__(self, config_manager):
         self.config_manager = config_manager
         self.fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
+        self.proc_mounts_location = self.config_manager.get_config("PROC_MOUNTS_LOCATION")
 
     def store_mount_information(self, mount: Mount):
         """
@@ -77,11 +83,10 @@ class FstabRepository(MountConfigRepository):
             options = f"credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto"
         elif mount.mount_type == MountType.LINUX:
             # We need to use SSHFS to mount linux shares
-            linux_user = self.config_manager.get_config("LINUX_SSH_USER")
             linux_ssh_location = self.config_manager.get_config("LINUX_SSH_LOCATION")
 
             # We need to update the actual path to include the SSH user
-            actual_dir = f"{linux_user}@{mount.actual_path}"
+            actual_dir = mount.actual_path
             options = f"IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto"
         else:
             raise MountException(f"Mount type {mount.mount_type} not supported")
@@ -133,7 +138,6 @@ class FstabRepository(MountConfigRepository):
         """
         Get all system mounts from the fstab file
         """
-
         # Read the file
         with open(self.fstab_location, "r") as f:
             fstab = Fstab().read_file(f)
@@ -142,6 +146,17 @@ class FstabRepository(MountConfigRepository):
             MountFactory.create_from_fstab_entry(entry)
             for entry in fstab.entries
         ]
+
+    def is_mounted(self, mount: Mount) -> bool:
+        """
+        Use the proc mounts file to check if the mount is currently mounted
+        """
+
+        # Read the file
+        with open(self.proc_mounts_location, "r") as f:
+            fstab = Fstab().read_file(f)
+
+        return any([entry.dir == mount.mount_path for entry in fstab.entries])
 
     def remove_mounts(self, mounts: list[Mount]):
         """

@@ -29,6 +29,7 @@ class ConfigManager:
         self.add_config('CIFS_FILE_LOCATION', getenv('CIFS_FILE_LOCATION'))
         self.add_config('DESIRED_MOUNTS_FILE_PATH', getenv('DESIRED_MOUNTS_FILE_PATH', 'mounts.json'))
         self.add_config('FSTAB_LOCATION', '/etc/fstab')
+        self.add_config('PROC_MOUNTS_LOCATION', '/proc/mounts')
         self.add_config('PROJECT_FOLDER', self.project_folder)
         self.add_config('ENV_FILE_PATH', self.env_file_path)
 

@@ -86,9 +86,11 @@ class MountRepository(MountRepositoryInterface):
 
         # Filter out the mounts that don't start with our mount prefix
         for mount in all_system_mounts:
-            if mount.mount_path.startswith(self.mount_prefix) and os.path.ismount(mount.mount_path):
+            is_mount = self.mount_config_repository.is_mounted(mount)
+
+            if mount.mount_path.startswith(self.mount_prefix) and is_mount:
                 current_mounts.append(mount)
-            elif not os.path.ismount(mount.mount_path) and mount.mount_path.startswith(self.mount_prefix):
+            elif not is_mount and mount.mount_path.startswith(self.mount_prefix):
                 LogFacade.warning(f"Mount {mount.mount_path} is present in the config but not mounted on the system")
 
         return current_mounts
