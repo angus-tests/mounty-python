@@ -1,18 +1,26 @@
+from typing import Callable
+
 from app.facades.log_facade import LogFacade
 from app.repositories.file_sytem_repository import FileSystemRepository
 from app.repositories.mount_config_repository import FstabRepository
 from app.repositories.mount_repository import MountRepository
 from app.services.mounting_service import MountingService
+from app.services.validation_service import ValidationService
 from app.util.config import ConfigManager
 from app.util.message import MESSAGE, DRY_RUN, CLEANUP
 
 
-def _setup_logger_and_config():
+def _setup_logger():
+    """
+    Set up the logger facade
+    """
+    LogFacade.configure_logger()
+
+
+def _setup_config() -> ConfigManager:
     """
     Set up the logger and load the configuration.
     """
-    # Set up the logger facade
-    LogFacade.configure_logger()
 
     # Initialize a config manager and load the configuration from the environment
     config_manager = ConfigManager()
@@ -35,7 +43,7 @@ def _get_mounting_service(config_manager):
 
     # Mount repository that interacts with the mounts
     mount_repository = MountRepository(config_manager, fstab_repository, file_system_repository)
-    
+
     return MountingService(mount_repository)
 
 
@@ -51,50 +59,66 @@ def _handle_status(status, success_message, failure_message):
         exit(1)
 
 
+def _run(message: str, config_manager: ConfigManager, callback: Callable):
+
+    _setup_logger()
+
+    # Setup a validation service
+    validation_service = ValidationService(config_manager, FileSystemRepository())
+
+    # Print the welcome message
+    LogFacade.info(message)
+
+    # Run the validation service
+    status = validation_service.validate()
+
+    # Exit if the validation failed
+    if not status:
+        LogFacade.error("Validation failed. Exiting...")
+        exit(1)
+
+    # Run the callback
+    status = callback()
+    _handle_status(status, "Operation completed successfully", "Operation failed")
+
+
 def main(dry_run=False):
     """
     Script entry point
     """
-    config_manager = _setup_logger_and_config()
-    mounting_service = _get_mounting_service(config_manager)
-
-    # Print the welcome message
     message = "Starting Mounty Python [DRY RUN] " + MESSAGE + DRY_RUN if dry_run else "Starting Mounty Python " + MESSAGE
-    LogFacade.info(message)
 
-    # Run the mounting service
-    status = mounting_service.dry_run() if dry_run else mounting_service.run()
-    _handle_status(status, "Mounting service completed successfully", "Mounting service failed")
+    config_manager = _setup_config()
+    mounting_service = _get_mounting_service(config_manager)
+    callback = mounting_service.dry_run if dry_run else mounting_service.run
+
+    _run(message, config_manager, callback)
 
 
 def unmount_all():
     """
     Unmount all mounts from the system (not system mounts).
     """
-    config_manager = _setup_logger_and_config()
+
+    message = "Starting Mounty Python (REMOVE ALL MOUNTS) " + MESSAGE
+
+    config_manager = _setup_config()
     mounting_service = _get_mounting_service(config_manager)
 
-    # Print the welcome message
-    LogFacade.info("Starting Mounty Python (REMOVE ALL MOUNTS) " + MESSAGE)
-
-    # Run the unmounting service
-    status = mounting_service.unmount_all()
-    _handle_status(status, "Unmounted all mounts successfully", "Failed to remove all mounts")
+    _run(message, config_manager, mounting_service.unmount_all)
 
 
 def cleanup():
     """
     Cleanup the fstab file.
     """
-    config_manager = _setup_logger_and_config()
+
+    message = "Starting Mounty Python [CLEANUP] " + MESSAGE + CLEANUP
+
+    config_manager = _setup_config()
     mounting_service = _get_mounting_service(config_manager)
 
-    # Print the welcome message
-    LogFacade.info("Starting Mounty Python [CLEANUP] " + MESSAGE + CLEANUP)
-
-    # Run the cleanup service
-    status = mounting_service.cleanup()
-    _handle_status(status, "Cleanup run successfully", "Failed running cleanup")
+    _run(message, config_manager, mounting_service.cleanup)
 
 
 if __name__ == "__main__":
