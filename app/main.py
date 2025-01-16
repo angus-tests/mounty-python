@@ -7,7 +7,7 @@ from app.repositories.mount_repository import MountRepository
 from app.services.mounting_service import MountingService
 from app.services.validation_service import ValidationService
 from app.util.config import ConfigManager
-from app.util.message import MESSAGE, DRY_RUN, CLEANUP
+from app.util.message import MESSAGE, DRY_RUN, CLEANUP, UNMOUNT_ALL
 
 
 def _setup_logger():
@@ -100,7 +100,7 @@ def unmount_all():
     Unmount all mounts from the system (not system mounts).
     """
 
-    message = "Starting Mounty Python (REMOVE ALL MOUNTS) " + MESSAGE
+    message = "Starting Mounty Python (REMOVE ALL MOUNTS) " + MESSAGE + UNMOUNT_ALL
 
     config_manager = _setup_config()
     mounting_service = _get_mounting_service(config_manager)
