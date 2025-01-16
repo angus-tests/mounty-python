@@ -72,14 +72,23 @@ class FstabRepository(MountConfigRepository):
         Read the contents of the fstab file
         :return Fstab: The fstab file object
         """
-        return Fstab().read_file(
+        fstab = Fstab().read_string(
             self.fs_repository.read_file(self.fstab_location)
         )
+
+        # Remove any duplicates
+        fstab.entries = list(set(fstab.entries))
+
+        return fstab
 
     def _write_fstab(self, fstab: Fstab):
         """
         Write the contents of the fstab file
         """
+
+        # Remove any duplicates
+        fstab.entries = list(set(fstab.entries))
+
         self.fs_repository.write_file(self.fstab_location, str(fstab))
 
     def _read_proc_mounts(self) -> Fstab:
@@ -100,7 +109,8 @@ class FstabRepository(MountConfigRepository):
     def _generate_mount_options(self, mount: Mount) -> str:
         if mount.mount_type == MountType.WINDOWS:
             cifs_file_location = self.config_manager.get_config("CIFS_FILE_LOCATION")
-            return f"credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto"
+            cifs_domain = self.config_manager.get_config("CIFS_DOMAIN")
+            return f"credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto"
         elif mount.mount_type == MountType.LINUX:
             linux_ssh_location = self.config_manager.get_config("LINUX_SSH_LOCATION")
             return f"IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto"
@@ -158,12 +168,11 @@ class FstabRepository(MountConfigRepository):
 
     def cleanup(self):
         """
-        Remove duplicates and entries that are not in the proc mounts file
+        Remove duplicates and any mounts not present in the proc mounts file
         """
         fstab = self._read_fstab()
         proc_mounts = self._read_proc_mounts()
 
-        fstab.entries = list(set(fstab.entries))  # Remove duplicates
         fstab.entries = self._filter_entries(
             fstab.entries,
             lambda entry: any(

@@ -11,46 +11,90 @@ from app.util.config import ConfigManager
 
 class TestHelper:
 
+    default_config_values = {
+        "FSTAB_LOCATION": "/etc/fstab",
+        "PROC_MOUNTS_LOCATION": "/proc/mounts",
+        "CIFS_FILE_LOCATION": "/etc/.cifs",
+        "LINUX_SSH_LOCATION": "/root/.ssh/id_rsa_linux",
+        "CIFS_DOMAIN": "ONS"
+    }
+
     @staticmethod
-    def setup_mock_fstab_repository(mock_fstab_open, mock_config_manager, fstab_content, config_values):
+    def setup_mock_fstab_repository(fstab_content: str = "", config_values=None):
         """
         Sets up the common mocked FSTAB repository and configuration manager.
         """
-        mock_fstab_open.return_value.read.return_value = fstab_content
 
-        if config_values:
-            mock_config_manager.get_config.side_effect = lambda key: config_values[key]
+        # If no config values are provided, use the default values
+        if config_values is None:
+            config_values = TestHelper.default_config_values
 
+        # Create a mock file system repository
         mock_fs_repository = MagicMock(spec=FileSystemRepositoryInterface)
-        mock_fs_repository.read_file.side_effect = lambda file_path: fstab_content
-        mock_fs_repository.file_exists.return_value = True
 
-        return FstabRepository(mock_config_manager, fs_repository=mock_fs_repository)
+        # Create a side effect for the read_file method
+        def read_file_side_effect(file_path):
+            if file_path == config_values["FSTAB_LOCATION"]:
+                return fstab_content
+            elif file_path == config_values["PROC_MOUNTS_LOCATION"]:
+                return fstab_content
+            return ""
+
+        # Set the side effect for the read_file method
+        mock_fs_repository.read_file.side_effect = read_file_side_effect
+
+        # Mock a config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Use a lambda to return values based on the parameter
+        mock_config_manager.get_config.side_effect = lambda key: config_values[key]
+
+        # Create a fstab repository
+        return FstabRepository(mock_config_manager, mock_fs_repository)
 
     @staticmethod
-    def format_file_contents(content):
+    def format_line(content):
         """
         Remove all spaces and special characters from the content
         """
         return re.sub(r"\s+", "", content)
 
+    @staticmethod
+    def compare_file_contents(expected_content, actual_content):
+        """
+        Compare the contents of two files, ignoring order and whitespace
+        """
+        expected_lines = expected_content.split("\n")
+        actual_lines = actual_content.split("\n")
+
+        # Remove any empty lines and remove spaces and special characters
+        expected_lines = [TestHelper.format_line(line) for line in expected_lines if line.strip()]
+        actual_lines = [TestHelper.format_line(line) for line in actual_lines if line.strip()]
+
+        # Assert two lists are equal (ignoring order)
+        return sorted(expected_lines) == sorted(actual_lines)
+
 
 class TestStoreMountInformation(unittest.TestCase):
 
-    @patch("builtins.open", new_callable=mock_open)
-    def test_store_mount_information_windows_success(self, mock_fstab_open):
+    def test_store_mount_information_windows_success(self):
         """
         This test will simulate storing mounting information for a windows mount
         in the fstab file
         """
 
-        cifs_file_location = "/etc/.cifs"
+        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
+        ssh_file_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
 
         # Mock the FSTAB content
-        mock_fstab_open.return_value.read.return_value = f"""
+        fstab_content = f"""
         /mnt/windows /system/mounts/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
-        ben@/mnt/linux /system/mounts/linux fuse.sshfs IdentityFile=/path/to/.ssh/id_rsa_linux,uid=1001,gid=5001,auto 0 0
+        ben@/mnt/linux /system/mounts/linux fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
         """
+
+        fstab_repository = TestHelper.setup_mock_fstab_repository(
+            fstab_content=fstab_content
+        )
 
         # Create our mount
         mount = FakeMountFactory.windows_mount(
@@ -58,31 +102,21 @@ class TestStoreMountInformation(unittest.TestCase):
             actual_path="/mnt/windows/folder"
         )
 
-        mock_config_manager = MagicMock(spec=ConfigManager)
-
-        # Mock the cifs_file_location
-        mock_config_manager.get_config.return_value = cifs_file_location
-
-        # Create a fstab repository
-        fstab_repository = FstabRepository(mock_config_manager)
-
-        # Store the mount information
+        # Run the store the mount information method
         fstab_repository.store_mount_information(mount)
 
         # Assert the content was written correctly
         expected_content = f"""
-        /mnt/windows /system/mounts/windows cifs credentials=/etc/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
-        ben@/mnt/linux /system/mounts/linux  fuse.sshfs IdentityFile=/path/to/.ssh/id_rsa_linux,uid=1001,gid=5001,auto 0 0
-        /mnt/windows/folder /shares/windows cifs credentials=/etc/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
+        /mnt/windows /system/mounts/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+        ben@/mnt/linux /system/mounts/linux  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+        /mnt/windows/folder /shares/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
         """
 
-        # Format the expected and actual to make them comparable
-        expected_formatted = format_file_contents(expected_content)
-        actual_content = mock_fstab_open().write.call_args[0][0]
-        actual_formatted = format_file_contents(actual_content)
-
         # Assert the content was written correctly
-        self.assertEqual(expected_formatted, actual_formatted)
+        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        self.assertTrue(
+            TestHelper.compare_file_contents(expected_content, actual)
+        )
 
     @patch("builtins.open", new_callable=mock_open)
     def test_store_mount_information_linux_success(self, mock_fstab_open):
