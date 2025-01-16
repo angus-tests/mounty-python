@@ -77,7 +77,7 @@ class FstabRepository(MountConfigRepository):
         )
 
         # Remove any duplicates
-        fstab.entries = list(set(fstab.entries))
+        fstab.entries = self._remove_duplicates(fstab.entries)
 
         return fstab
 
@@ -87,16 +87,32 @@ class FstabRepository(MountConfigRepository):
         """
 
         # Remove any duplicates
-        fstab.entries = list(set(fstab.entries))
+        fstab.entries = self._remove_duplicates(fstab.entries)
 
         self.fs_repository.write_file(self.fstab_location, str(fstab))
+
+    def _remove_duplicates(self, entries: list[Entry]):
+        """
+        Remove any duplicates from the fstab file
+        :entries list[Entry]: The entries to remove duplicates from
+        """
+        keep = []
+
+        # Store the device and dir of each entry
+        seen: list[tuple] = []
+
+        for entry in entries:
+            if (entry.device, entry.dir) not in seen:
+                seen.append((entry.device, entry.dir))
+                keep.append(entry)
+        return keep
 
     def _read_proc_mounts(self) -> Fstab:
         """
         Read the contents of the proc mounts file
         """
 
-        return Fstab().read_file(
+        return Fstab().read_string(
             self.fs_repository.read_file(self.proc_mounts_location)
         )
 
@@ -139,8 +155,16 @@ class FstabRepository(MountConfigRepository):
         """
         Remove a mount from the FSTAB
         """
+
+        # Sanitize the path
+        mount_path = self._sanitize_path(mount_path)
+
+        # Read the fstab file
         fstab = self._read_fstab()
+
+        # Remove the entry
         fstab.entries = self._filter_entries(fstab.entries, lambda entry: entry.dir != mount_path)
+
         self._write_fstab(fstab)
 
     def get_all_system_mounts(self) -> list[Mount]:
