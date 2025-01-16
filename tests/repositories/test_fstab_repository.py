@@ -4,15 +4,35 @@ from unittest.mock import MagicMock, mock_open, patch
 
 from app.exceptions.mount_exception import MountException
 from app.factories.mount_factory import FakeMountFactory
+from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
 from app.repositories.mount_config_repository import FstabRepository
 from app.util.config import ConfigManager
 
 
-def format_file_contents(content):
-    """
-    Remove all spaces and special characters from the content
-    """
-    return re.sub(r"\s+", "", content)
+class TestHelper:
+
+    @staticmethod
+    def setup_mock_fstab_repository(mock_fstab_open, mock_config_manager, fstab_content, config_values):
+        """
+        Sets up the common mocked FSTAB repository and configuration manager.
+        """
+        mock_fstab_open.return_value.read.return_value = fstab_content
+
+        if config_values:
+            mock_config_manager.get_config.side_effect = lambda key: config_values[key]
+
+        mock_fs_repository = MagicMock(spec=FileSystemRepositoryInterface)
+        mock_fs_repository.read_file.side_effect = lambda file_path: fstab_content
+        mock_fs_repository.file_exists.return_value = True
+
+        return FstabRepository(mock_config_manager, fs_repository=mock_fs_repository)
+
+    @staticmethod
+    def format_file_contents(content):
+        """
+        Remove all spaces and special characters from the content
+        """
+        return re.sub(r"\s+", "", content)
 
 
 class TestStoreMountInformation(unittest.TestCase):

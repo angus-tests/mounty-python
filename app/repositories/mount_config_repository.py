@@ -6,6 +6,8 @@ from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
 from app.factories.mount_factory import MountFactory
 from app.models.mount import Mount
+from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
+from app.util.config import ConfigManager
 
 
 class MountConfigRepository(ABC):
@@ -55,8 +57,13 @@ class FstabRepository(MountConfigRepository):
     for use with the fstab file
     """
 
-    def __init__(self, config_manager):
+    def __init__(self, config_manager: ConfigManager, fs_repository: FileSystemRepositoryInterface):
+        """
+        :param config_manager: ConfigManager - An instance of the config manager to fetch configuration variables
+        :param fs_repository: FileSystemRepositoryInterface - An instance of the file system repository
+        """
         self.config_manager = config_manager
+        self.fs_repository = fs_repository
         self.fstab_location = self.config_manager.get_config("FSTAB_LOCATION")
         self.proc_mounts_location = self.config_manager.get_config("PROC_MOUNTS_LOCATION")
 
@@ -65,22 +72,24 @@ class FstabRepository(MountConfigRepository):
         Read the contents of the fstab file
         :return Fstab: The fstab file object
         """
-        with open(self.fstab_location, "r") as f:
-            return Fstab().read_file(f)
+        return Fstab().read_file(
+            self.fs_repository.read_file(self.fstab_location)
+        )
 
     def _write_fstab(self, fstab: Fstab):
         """
         Write the contents of the fstab file
         """
-        with open(self.fstab_location, "w") as f:
-            f.write(str(fstab))
+        self.fs_repository.write_file(self.fstab_location, str(fstab))
 
     def _read_proc_mounts(self) -> Fstab:
         """
         Read the contents of the proc mounts file
         """
-        with open(self.proc_mounts_location, "r") as f:
-            return Fstab().read_file(f)
+
+        return Fstab().read_file(
+            self.fs_repository.read_file(self.proc_mounts_location)
+        )
 
     def _sanitize_path(self, path: str) -> str:
         replacements = {"\n": "", "\r": "", "\\": "/", " ": "\\040"}

@@ -1,6 +1,4 @@
 import json
-import os
-import shutil
 import subprocess
 from abc import ABC, abstractmethod
 
@@ -10,6 +8,7 @@ from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
 from app.factories.mount_factory import MountFactory
 from app.models.mount import Mount
+from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
 from app.repositories.mount_config_repository import MountConfigRepository
 from app.util.config import ConfigManager
 
@@ -73,9 +72,17 @@ class MountRepository(MountRepositoryInterface):
     def __init__(self,
                  config_manager: ConfigManager,
                  mount_config_repository: MountConfigRepository,
+                 fs_repository: FileSystemRepositoryInterface,
                  mount_prefix="/shares"):
+        """
+        :param config_manager: ConfigManager - An instance of the config manager to fetch configuration variables
+        :param mount_config_repository: MountConfigRepository - An instance of the mount config repository to fetch mount information from FSTAB etc
+        :param fs_repository: FileSystemRepositoryInterface - An instance of the file system repository to interact with the file system
+        :param mount_prefix: str - The prefix for the mounts we are interested in
+        """
         self.config_manager = config_manager
         self.mount_config_repository = mount_config_repository
+        self.fs_repository = fs_repository
         self.mount_prefix = mount_prefix
 
     def get_current_mounts(self) -> list[Mount]:
@@ -105,8 +112,10 @@ class MountRepository(MountRepositoryInterface):
         Read in the desired mounts from a .json file
         """
 
-        with open(self.config_manager.get_config("DESIRED_MOUNTS_FILE_PATH"), "r") as f:
-            mounts_data = json.load(f)
+        # Read the desired mounts from the file
+        mounts_data = json.loads(
+            self.fs_repository.read_file(self.config_manager.get_config("DESIRED_MOUNTS_FILE_PATH"))
+        )
 
         mounts = []
 
@@ -193,6 +202,8 @@ class MountRepository(MountRepositoryInterface):
         """
         Cleanup the system
         """
+
+        # TODO
         pass
 
     def _perform_unmount(self, mount_path: str):
@@ -233,7 +244,7 @@ class MountRepository(MountRepositoryInterface):
         if check_empty:
             self._validate_mount_point(mount_path)
         try:
-            shutil.rmtree(mount_path)
+            self.fs_repository.remove_directory(mount_path)
         except Exception as e:
             raise UnmountException(f"Error removing mount point {mount_path}: {e}")
 
@@ -244,8 +255,8 @@ class MountRepository(MountRepositoryInterface):
         """
         try:
             # Create the mount point if it doesn't exist
-            if not os.path.exists(mount_path):
-                os.makedirs(mount_path, exist_ok=True)
+            if not self.fs_repository.directory_exists(mount_path):
+                self.fs_repository.create_directory(mount_path)
         except Exception as e:
             raise MountException(f"Error adding mount point {mount_path}: {e}")
 
@@ -254,7 +265,9 @@ class MountRepository(MountRepositoryInterface):
         Validate that is the mount point exists, it needs to be empty
         :param mount_path: The path to validate
         """
-        if os.path.exists(mount_path) and os.listdir(mount_path):
+
+        # Check the mount point exists and if it is empty
+        if self.fs_repository.directory_exists(mount_path) and not self.fs_repository.directory_empty(mount_path):
             raise UnmountException(
                 f"Mount point {mount_path} is not empty, please remove the contents before unmounting"
             )
