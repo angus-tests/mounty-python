@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import MagicMock, patch, mock_open
 
 from app.enums.enums import MountType
+from app.exceptions.cleanup_exception import CleanupException
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.models.mount import Mount
@@ -459,6 +460,29 @@ class TestUnmountAll(unittest.TestCase):
 
         # Assert that the returned list is empty
         self.assertListEqual(failed_mounts, [])
+
+
+class TestCleanup(unittest.TestCase):
+
+    def setUp(self):
+        """
+        Common setup for all cleanup tests.
+        """
+        self.mount_repo = TestHelper.setup_mock_config_repo(
+            is_mounted=True
+        )
+
+    def test_cleanup_exception(self):
+        """
+        This test will simulate a failure during the cleanup process.
+        """
+
+        # Mock the behavior of the cleanup method
+        self.mount_repo.mount_config_repository.cleanup.side_effect = Exception("Something went wrong")
+
+        with self.assertRaises(CleanupException):
+            self.mount_repo.cleanup()
+
 
 
 if __name__ == '__main__':

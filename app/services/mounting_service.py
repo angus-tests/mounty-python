@@ -1,5 +1,6 @@
 from collections.abc import Callable
 
+from app.exceptions.cleanup_exception import CleanupException
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
@@ -49,7 +50,12 @@ class MountingService:
         :return True if the cleanup was successful
         """
         LogFacade.info("Cleanup running...")
-        return self.mount_repository.cleanup()
+        try:
+            self.mount_repository.cleanup()
+        except CleanupException as e:
+            LogFacade.error(f"Failed to cleanup mounts: {e}")
+            return False
+        return True
 
     def unmount_all(self) -> bool:
         """

@@ -3,6 +3,7 @@ import subprocess
 from abc import ABC, abstractmethod
 
 from app.enums.enums import MountType
+from app.exceptions.cleanup_exception import CleanupException
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
@@ -200,11 +201,13 @@ class MountRepository(MountRepositoryInterface):
 
     def cleanup(self):
         """
-        Cleanup the system
+        Cleanup the configuration repository
+        remove duplicates and fake mounts
         """
-
-        # TODO
-        pass
+        try:
+            self.mount_config_repository.cleanup()
+        except Exception as e:
+            raise CleanupException(f"Error cleaning up mount configuration: {e}")
 
     def _perform_unmount(self, mount_path: str):
         """
