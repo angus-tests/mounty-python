@@ -20,6 +20,7 @@ There are three main commands that can be run:
 
 - `python3 run.py --dry-run` - Simulates the mounting script without actually mounting anything
 - `python3 run.py --unmount-all` - Remove all the manually mounted shares (including the mount points)
+- `python3 run.py --cleanup` - Will cleanup the FSTAB file (remove duplicates and any stale mounts)
 - `python3 run.py` - Mount the shares specified in the `mounts.json` file
 
 ### Running from bash
@@ -28,4 +29,5 @@ The scripts can also be run from a bash script, which will also setup a VIRTUAL 
 
 - `sh run.sh --dry-run`
 - `sh run.sh --unmount-all`
+- `sh run.sh --cleanup`
 - `sh run.sh`

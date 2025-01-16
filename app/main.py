@@ -1,4 +1,5 @@
 from app.facades.log_facade import LogFacade
+from app.repositories.file_sytem_repository import FileSystemRepository
 from app.repositories.mount_config_repository import FstabRepository
 from app.repositories.mount_repository import MountRepository
 from app.services.mounting_service import MountingService
@@ -25,7 +26,16 @@ def _get_mounting_service(config_manager):
     """
     Create and return a MountingService instance.
     """
-    mount_repository = MountRepository(config_manager, FstabRepository(config_manager))
+
+    # File system repository that interacts with the file system
+    file_system_repository = FileSystemRepository()
+
+    # Fstab repository that interacts with the fstab file
+    fstab_repository = FstabRepository(config_manager, file_system_repository)
+
+    # Mount repository that interacts with the mounts
+    mount_repository = MountRepository(config_manager, fstab_repository, file_system_repository)
+    
     return MountingService(mount_repository)
 
 
