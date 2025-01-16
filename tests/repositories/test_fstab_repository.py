@@ -533,5 +533,47 @@ class TestIsMounted(unittest.TestCase):
         self.assertFalse(is_mounted)
 
 
+class TestCleanup(unittest.TestCase):
+
+    def test_cleanup(self):
+        """
+        This test will simulate cleaning up the mount information
+        """
+
+        # Mock the FSTAB content with some duplicates and some mounts that are not in proc
+        fstab_content = f"""
+            {TestHelper.windows_fstab_line("/mnt/windowserver1", "/shares/windows1")}
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
+            {TestHelper.linux_fstab_line("/mnt/linuxserver1", "/shares/linux1")}
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
+            """
+
+        # Mock the proc content to only have the first two mounts
+        proc_content = f"""
+            {TestHelper.windows_fstab_line("/mnt/windowserver1", "/shares/windows1")}
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
+            """
+
+        fstab_repository = TestHelper.setup_mock_fstab_repository(
+            fstab_content=fstab_content,
+            proc_content=proc_content
+        )
+
+        # Call the cleanup method
+        fstab_repository.cleanup()
+
+        # Assert the content was written correctly
+        expected_content = f"""
+            {TestHelper.windows_fstab_line("/mnt/windowserver1", "/shares/windows1")}
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
+        """
+
+        # Assert the content was written correctly
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
+        self.assertTrue(
+            TestHelper.compare_file_contents(expected_content, actual)
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
