@@ -102,6 +102,27 @@ class TestHelper:
         elif mount_type == MountType.LINUX:
             return f"{ssh_user}@{actual_path} {mount_path} fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0"
 
+    @staticmethod
+    def windows_fstab_line(actual_path: str, mount_path: str):
+        """
+        Create a formatted fstab line for a windows mount
+        """
+        return TestHelper.fstab_line(actual_path, mount_path, MountType.WINDOWS)
+
+    @staticmethod
+    def linux_fstab_line(actual_path: str, mount_path: str):
+        """
+        Create a formatted fstab line for a linux mount
+        """
+        return TestHelper.fstab_line(actual_path, mount_path, MountType.LINUX)
+
+    @staticmethod
+    def get_last_write_content(mock_fs_repository):
+        """
+        Get the content of the last write file call
+        """
+        return mock_fs_repository.write_file.call_args[0][1]
+
 
 class TestStoreMountInformation(unittest.TestCase):
 
@@ -142,7 +163,7 @@ class TestStoreMountInformation(unittest.TestCase):
         """
 
         # Assert the content was written correctly
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
         self.assertTrue(
             TestHelper.compare_file_contents(expected_content, actual)
         )
@@ -185,7 +206,7 @@ class TestStoreMountInformation(unittest.TestCase):
                 """
 
         # Assert the content was written correctly
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
         self.assertTrue(
             TestHelper.compare_file_contents(expected_content, actual)
         )
@@ -245,7 +266,7 @@ class TestStoreMountInformation(unittest.TestCase):
                 """
 
         # Assert the content was written correctly
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
         self.assertTrue(
             TestHelper.compare_file_contents(expected_content, actual)
         )
@@ -286,7 +307,7 @@ class TestRemoveMountInformation(unittest.TestCase):
         """
 
         # Assert the content was written correctly
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
         self.assertTrue(
             TestHelper.compare_file_contents(expected_content, actual)
         )
@@ -324,7 +345,7 @@ class TestRemoveMountInformation(unittest.TestCase):
         """
 
         # Assert the content was written correctly
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
         self.assertTrue(
             TestHelper.compare_file_contents(expected_content, actual)
         )
@@ -350,7 +371,7 @@ class TestRemoveMountInformation(unittest.TestCase):
         expected_content = ""
 
         # Assert the content was written correctly
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
         self.assertTrue(
             TestHelper.compare_file_contents(expected_content, actual)
         )
@@ -399,7 +420,8 @@ class TestRemoveMounts(unittest.TestCase):
             {linux_ssh_user}@/mnt/linuxserver1 /shares/linux1 fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
             """
 
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        # Fetch the last content that was written to the write file method
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
 
         self.assertTrue(
             TestHelper.compare_file_contents(expected, actual)
@@ -431,7 +453,8 @@ class TestRemoveMounts(unittest.TestCase):
 
         expected = ""
 
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        # Fetch the last content that was written to the write file method
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
 
         self.assertTrue(
             TestHelper.compare_file_contents(expected, actual)
@@ -443,16 +466,13 @@ class TestRemoveMounts(unittest.TestCase):
         where some of the mounts do not exist in the fstab file
         """
 
-        linux_ssh_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
         linux_ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
-        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
-        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
 
         # Mock the FSTAB content
         fstab_content = f"""
-            /mnt/windowserver1 /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            {linux_ssh_user}@/mnt/linuxserver1 /shares/linux1 fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
+            {TestHelper.windows_fstab_line("/mnt/windowserver1", "/shares/windows1")}
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
+            {TestHelper.linux_fstab_line("/mnt/linuxserver1", "/shares/linux1")}
             """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -475,11 +495,12 @@ class TestRemoveMounts(unittest.TestCase):
         fstab_repository.remove_mounts(mounts)
 
         expected = f"""
-            /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            {linux_ssh_user}@/mnt/linuxserver1 /shares/linux1 fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
+            {TestHelper.linux_fstab_line("/mnt/linuxserver1", "/shares/linux1")}
             """
 
-        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        # Fetch the last content that was written to the write file method
+        actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
 
         self.assertTrue(
             TestHelper.compare_file_contents(expected, actual)
@@ -494,13 +515,10 @@ class TestIsMounted(unittest.TestCase):
         and it is mounted
         """
 
-        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
-        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
-
         # Mock the proc file content
         proc_content = f"""
-            /mnt/windowserver1 /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+            {TestHelper.windows_fstab_line("/mnt/windowserver1", "/shares/windows1")}
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
             """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -517,13 +535,10 @@ class TestIsMounted(unittest.TestCase):
         This test will simulate checking if a mount is mounted and it is not mounted
         """
 
-        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
-        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
-
         # Mock the proc file content
         proc_content = f"""
-            /mnt/windowserver1 /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+            {TestHelper.windows_fstab_line("/mnt/windowserver1", "/shares/windows1")}
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
             """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -534,6 +549,7 @@ class TestIsMounted(unittest.TestCase):
         is_mounted = fstab_repository.is_mounted("/shares/windows3")
 
         self.assertFalse(is_mounted)
+
 
 if __name__ == '__main__':
     unittest.main()
