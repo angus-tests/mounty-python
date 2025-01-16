@@ -132,14 +132,10 @@ class TestStoreMountInformation(unittest.TestCase):
         in the fstab file
         """
 
-        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
-        ssh_file_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
-        ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
-
         # Mock the FSTAB content
         fstab_content = f"""
-        /mnt/windows /system/mounts/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
-        {ssh_user}@/mnt/linux /system/mounts/linux fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+        {TestHelper.windows_fstab_line("/mnt/windows", "/system/mounts/windows")}
+        {TestHelper.linux_fstab_line("/mnt/linux", "/system/mounts/linux")}
         """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -157,9 +153,9 @@ class TestStoreMountInformation(unittest.TestCase):
 
         # Assert the content was written correctly
         expected_content = f"""
-        /mnt/windows /system/mounts/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
-        {ssh_user}@/mnt/linux /system/mounts/linux  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
-        /mnt/windows/folder /shares/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+        {TestHelper.windows_fstab_line("/mnt/windows", "/system/mounts/windows")}
+        {TestHelper.linux_fstab_line("/mnt/linux", "/system/mounts/linux")}
+        {TestHelper.windows_fstab_line("/mnt/windows/folder", "/shares/windows")}
         """
 
         # Assert the content was written correctly
@@ -174,16 +170,13 @@ class TestStoreMountInformation(unittest.TestCase):
         in the fstab file
         """
 
-        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
-        ssh_file_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
         ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
-        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
 
         # Mock the FSTAB content
         fstab_content = f"""
-                /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-                {ssh_user}@/mnt/linux /shares/linux1 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
-                """
+            {TestHelper.windows_fstab_line("/mnt/windows", "/shares/windows1")}
+            {TestHelper.linux_fstab_line("/mnt/linux", "/shares/linux1")}
+            """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
             fstab_content=fstab_content
@@ -200,10 +193,10 @@ class TestStoreMountInformation(unittest.TestCase):
 
         # Assert the content was written correctly
         expected_content = f"""
-                /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
-                {ssh_user}@/mnt/linux /shares/linux1  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
-                {ssh_user}@/linuxserver/mount /shares/linux2  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
-                """
+            {TestHelper.windows_fstab_line("/mnt/windows", "/shares/windows1")}
+            {TestHelper.linux_fstab_line("/mnt/linux", "/shares/linux1")}
+            {TestHelper.linux_fstab_line("/linuxserver/mount", "/shares/linux2")}
+            """
 
         # Assert the content was written correctly
         actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
@@ -233,16 +226,11 @@ class TestStoreMountInformation(unittest.TestCase):
         and ensure that the duplicates are removed when storing a new mount
         """
 
-        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
-        ssh_file_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
-        ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
-        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
-
         # Mock the FSTAB content (include duplicates)
         fstab_content = f"""
-            /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            {ssh_user}@/mnt/linux /shares/linux1 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
-            /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+            {TestHelper.windows_fstab_line("/mnt/windows", "/shares/windows1")}
+            {TestHelper.linux_fstab_line("/mnt/linux", "/shares/linux1")}
+            {TestHelper.windows_fstab_line("/mnt/windows", "/shares/windows1")}
             """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -260,10 +248,10 @@ class TestStoreMountInformation(unittest.TestCase):
 
         # Assert the content was written correctly
         expected_content = f"""
-                /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
-                {ssh_user}@/mnt/linux /shares/linux1  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
-                /mnt/windows2 /shares/windows2 cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
-                """
+            {TestHelper.windows_fstab_line("/mnt/windows", "/shares/windows1")}
+            {TestHelper.linux_fstab_line("/mnt/linux", "/shares/linux1")}
+            {TestHelper.windows_fstab_line("/mnt/windows2", "/shares/windows2")}
+            """
 
         # Assert the content was written correctly
         actual = TestHelper.get_last_write_content(fstab_repository.fs_repository)
@@ -279,13 +267,10 @@ class TestRemoveMountInformation(unittest.TestCase):
         This test will simulate removing mounting information for a windows mount
         """
 
-        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
-        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
-
         # Mock the FSTAB content
         fstab_content = f"""
-        /mnt/windowserver1 /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-        /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+        {TestHelper.windows_fstab_line("/mnt/windowserver1", "/shares/windows1")}
+        {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
         """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -303,7 +288,7 @@ class TestRemoveMountInformation(unittest.TestCase):
 
         # Assert the content was written correctly
         expected_content = f"""
-        /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+        {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
         """
 
         # Assert the content was written correctly
@@ -317,13 +302,12 @@ class TestRemoveMountInformation(unittest.TestCase):
         This test will simulate removing mounting information for a linux mount
         """
 
-        ssh_file_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
         ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
 
         # Mock the FSTAB content
         fstab_content = f"""
-        {ssh_user}@/mnt/linuxserver1 /shares/linux1 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
-        {ssh_user}@/mnt/linuxserver2 /shares/linux2 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+        {TestHelper.linux_fstab_line("/mnt/linuxserver1", "/shares/linux1")}
+        {TestHelper.linux_fstab_line("/mnt/linuxserver2", "/shares/linux2")}
         """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -341,7 +325,7 @@ class TestRemoveMountInformation(unittest.TestCase):
 
         # Assert the content was written correctly
         expected_content = f"""
-        {ssh_user}@/mnt/linuxserver2 /shares/linux2 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+        {TestHelper.linux_fstab_line("/mnt/linuxserver2", "/shares/linux2")}
         """
 
         # Assert the content was written correctly
@@ -383,17 +367,15 @@ class TestRemoveMounts(unittest.TestCase):
         """
         This test will simulate removing multiple mounts from the fstab file
         """
-        linux_ssh_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
+
         linux_ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
-        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
-        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
 
         # Mock the FSTAB content
         fstab_content = f"""
-            /mnt/windowserver1 /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            {linux_ssh_user}@/mnt/linuxserver1 /shares/linux1 fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
-            {linux_ssh_user}@/mnt/linuxserver2 /shares/linux2 fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
+            {TestHelper.windows_fstab_line("/mnt/windowserver1", "/shares/windows1")}
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
+            {TestHelper.linux_fstab_line("/mnt/linuxserver1", "/shares/linux1")}
+            {TestHelper.linux_fstab_line("/mnt/linuxserver2", "/shares/linux2")}
             """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -416,8 +398,8 @@ class TestRemoveMounts(unittest.TestCase):
         fstab_repository.remove_mounts(mounts)
 
         expected = f"""
-            /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
-            {linux_ssh_user}@/mnt/linuxserver1 /shares/linux1 fuse.sshfs IdentityFile={linux_ssh_location},uid=1001,gid=5001,auto 0 0
+            {TestHelper.windows_fstab_line("/mnt/windowserver2", "/shares/windows2")}
+            {TestHelper.linux_fstab_line("/mnt/linuxserver1", "/shares/linux1")}
             """
 
         # Fetch the last content that was written to the write file method
