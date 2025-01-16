@@ -6,6 +6,7 @@ from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.models.mount import Mount
+from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
 from app.repositories.mount_config_repository import MountConfigRepository
 from app.repositories.mount_repository import MountRepository
 from app.util.config import ConfigManager
@@ -28,23 +29,65 @@ def setup_mount_config_repo(system_mounts: list[Mount] = None,
     return mock_config_repository
 
 
-class TestGetCurrentMounts(unittest.TestCase):
+class TestHelper:
 
-    def setUp(self):
+    default_config_values = {
+        "FSTAB_LOCATION": "/etc/fstab",
+        "PROC_MOUNTS_LOCATION": "/proc/mounts",
+        "CIFS_FILE_LOCATION": "/etc/.cifs",
+        "LINUX_SSH_LOCATION": "/root/.ssh/id_rsa_linux",
+        "LINUX_SSH_USER": "dave",
+        "CIFS_DOMAIN": "ONS"
+    }
+
+    @staticmethod
+    def setup_mock_config_repo(
+        system_mounts: list[Mount] = None,
+        remove_failures: list[Mount] = None,
+        is_mounted: bool = True
+    ):
         """
-        Common setup for all tests.
+        Sets up the common mocked FSTAB repository and configuration manager.
+        :param system_mounts: Optionally specify fake system mount info this mock should return
+        :param remove_failures: Optionally specify a list of mounts that the repo failed to remove from the system
+        :param is_mounted: Optionally specify if a mount is mounted
         """
-        self.mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Create the mock config repository
+        mock_config_repository = setup_mount_config_repo(
+            system_mounts=system_mounts or [],
+            remove_failures=remove_failures or [],
+            is_mounted=is_mounted
+        )
+
+        # Create the mock config manager
+        mock_config_manager = MagicMock(spec=ConfigManager)
+
+        # Set the default config values
+        mock_config_manager.get_config.side_effect = lambda key: TestHelper.default_config_values[key]
+
+        # Create a mock file system repository
+        mock_fs_repository = MagicMock(spec=FileSystemRepositoryInterface)
+
+        # Create a MountRepository
+        return MountRepository(
+            mock_config_manager,
+            mock_config_repository,
+            mock_fs_repository
+        )
+
+
+class TestGetCurrentMounts(unittest.TestCase):
 
     def run_test(self, system_mounts, expected_mounts):
         """
         Helper method to test `get_current_mounts` with various inputs.
         """
-        # Simulate system mounts
-        mock_config_repository = setup_mount_config_repo(system_mounts=system_mounts)
 
-        # Create the MountRepo
-        mount_repo = MountRepository(self.mock_config_manager, mock_config_repository)
+        # Create a mount repository
+        mount_repo = TestHelper.setup_mock_config_repo(
+            system_mounts=system_mounts
+        )
 
         # Run the get_current_mounts
         current_mounts = mount_repo.get_current_mounts()
