@@ -129,11 +129,12 @@ class TestStoreMountInformation(unittest.TestCase):
         cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
         ssh_file_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
         ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
+        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
 
         # Mock the FSTAB content
         fstab_content = f"""
-                /mnt/windows /system/mounts/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
-                {ssh_user}@/mnt/linux /system/mounts/linux fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+                /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+                {ssh_user}@/mnt/linux /shares/linux1 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
                 """
 
         fstab_repository = TestHelper.setup_mock_fstab_repository(
@@ -142,7 +143,7 @@ class TestStoreMountInformation(unittest.TestCase):
 
         # Create our mount
         mount = FakeMountFactory.linux_mount(
-            mount_path="/shares/linux/mount",
+            mount_path="/shares/linux2",
             actual_path=f"{ssh_user}@/linuxserver/mount"
         )
 
@@ -151,9 +152,9 @@ class TestStoreMountInformation(unittest.TestCase):
 
         # Assert the content was written correctly
         expected_content = f"""
-                /mnt/windows /system/mounts/windows cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
-                {ssh_user}@/mnt/linux /system/mounts/linux  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
-                {ssh_user}@/linuxserver/mount /shares/linux/mount  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+                /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+                {ssh_user}@/mnt/linux /shares/linux1  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+                {ssh_user}@/linuxserver/mount /shares/linux2  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
                 """
 
         # Assert the content was written correctly
@@ -178,49 +179,127 @@ class TestStoreMountInformation(unittest.TestCase):
             # Run the store the mount information method
             fstab_repository.store_mount_information(mount)
 
+    def test_store_mount_removes_duplicates(self):
+        """
+        This test will simulate an fstab with duplicate entries
+        and ensure that the duplicates are removed when storing a new mount
+        """
+
+        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
+        ssh_file_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
+        ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
+        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
+
+        # Mock the FSTAB content (include duplicates)
+        fstab_content = f"""
+            /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+            {ssh_user}@/mnt/linux /shares/linux1 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+            /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+            """
+
+        fstab_repository = TestHelper.setup_mock_fstab_repository(
+            fstab_content=fstab_content
+        )
+
+        # Create our mount
+        mount = FakeMountFactory.linux_mount(
+            mount_path="/shares/windows2",
+            actual_path=f"/mnt/windows2"
+        )
+
+        # Run the store the mount information method
+        fstab_repository.store_mount_information(mount)
+
+        # Assert the content was written correctly
+        expected_content = f"""
+                /mnt/windows /shares/windows1 cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+                {ssh_user}@/mnt/linux /shares/linux1  fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+                /mnt/windows2 /shares/windows2 cifs credentials={cifs_file_location},domain=ONS,uid=1001,gid=5001,auto 0 0
+                """
+
+        # Assert the content was written correctly
+        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        self.assertTrue(
+            TestHelper.compare_file_contents(expected_content, actual)
+        )
 
 class TestRemoveMountInformation(unittest.TestCase):
 
-    @patch("builtins.open", new_callable=mock_open)
-    def test_remove_mount_information_windows_success(self, mock_fstab_open):
+    def test_remove_mount_information_windows_success(self):
         """
         This test will simulate removing mounting information for a windows mount
-        from the fstab file
         """
+
+        cifs_file_location = TestHelper.default_config_values["CIFS_FILE_LOCATION"]
+        cifs_domain = TestHelper.default_config_values["CIFS_DOMAIN"]
 
         # Mock the FSTAB content
-        mock_fstab_open.return_value.read.return_value = f"""
-        /mnt/windows /system/mounts/windows cifs credentials=/path/to/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
-        /mnt/windows/folder /shares/windows cifs credentials=/path/to/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
+        fstab_content = f"""
+        /mnt/windowserver1 /shares/windows1 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
+        /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
         """
 
-        # Create a mount that exists in the fstab file
-        mount = FakeMountFactory.windows_mount(
-            mount_path="/shares/windows",
-            actual_path="/mnt/windows/folder"
+        fstab_repository = TestHelper.setup_mock_fstab_repository(
+            fstab_content=fstab_content
         )
 
-        mock_config_manager = MagicMock(spec=ConfigManager)
+        # Create a mount that already exists in the fstab file
+        mount = FakeMountFactory.windows_mount(
+            mount_path="/shares/windows1",
+            actual_path="/mnt/windowserver1"
+        )
 
-        # Create the fstab repository
-        fstab_repository = FstabRepository(mock_config_manager)
-
-        # Remove the mount information
+        # Run the store the mount information method
         fstab_repository.remove_mount_information(mount.mount_path)
 
-        # Ensure that the mount information was removed when it is written back to the file
-
+        # Assert the content was written correctly
         expected_content = f"""
-        /mnt/windows /system/mounts/windows cifs credentials=/path/to/.cifs,domain=ONS,uid=1001,gid=5001,auto 0 0
+        /mnt/windowserver2 /shares/windows2 cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0
         """
 
-        # Format the expected and actual to make them comparable
-        expected_formatted = format_file_contents(expected_content)
-        actual_content = mock_fstab_open().write.call_args[0][0]
-        actual_formatted = format_file_contents(actual_content)
+        # Assert the content was written correctly
+        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        self.assertTrue(
+            TestHelper.compare_file_contents(expected_content, actual)
+        )
+
+    def test_remove_mount_information_linux_success(self):
+        """
+        This test will simulate removing mounting information for a linux mount
+        """
+
+        ssh_file_location = TestHelper.default_config_values["LINUX_SSH_LOCATION"]
+        ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
+
+        # Mock the FSTAB content
+        fstab_content = f"""
+        {ssh_user}@/mnt/linuxserver1 /shares/linux1 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+        {ssh_user}@/mnt/linuxserver2 /shares/linux2 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+        """
+
+        fstab_repository = TestHelper.setup_mock_fstab_repository(
+            fstab_content=fstab_content
+        )
+
+        # Create a mount that already exists in the fstab file
+        mount = FakeMountFactory.linux_mount(
+            mount_path="/shares/linux1",
+            actual_path=f"{ssh_user}@/mnt/linuxserver1"
+        )
+
+        # Run the store the mount information method
+        fstab_repository.remove_mount_information(mount.mount_path)
 
         # Assert the content was written correctly
-        self.assertEqual(expected_formatted, actual_formatted)
+        expected_content = f"""
+        {ssh_user}@/mnt/linuxserver2 /shares/linux2 fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0
+        """
+
+        # Assert the content was written correctly
+        actual = fstab_repository.fs_repository.write_file.call_args[0][1]
+        self.assertTrue(
+            TestHelper.compare_file_contents(expected_content, actual)
+        )
 
 
 class TestRemoveMounts(unittest.TestCase):
