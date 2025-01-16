@@ -10,7 +10,8 @@ function show_help() {
   echo ""
   echo "Options:"
   echo "  --dry-run         Run the mount script in dry-run mode."
-  echo "  --unmount-all     Run the unmount_all function."
+  echo "  --unmount-all     Unmount all our mounts"
+  echo "  --cleanup         Clean up the fstab file."
   echo "  --help            Show this help message."
   exit 0
 }
@@ -23,6 +24,9 @@ for arg in "$@"; do
       ;;
     --unmount-all)
       ARGS="--unmount-all"
+      ;;
+    --cleanup)
+      ARGS="--cleanup"
       ;;
     --help)
       show_help

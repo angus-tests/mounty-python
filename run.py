@@ -1,5 +1,5 @@
 import argparse
-from app.main import main, unmount_all
+from app.main import main, unmount_all, cleanup
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run the mount or unmount script.")
@@ -9,9 +9,16 @@ if __name__ == "__main__":
     parser.add_argument(
         "--unmount-all", action="store_true", help="Run the unmount_all function instead of the mount script."
     )
+    parser.add_argument(
+        "--cleanup", action="store_true", help="Cleanup the fstab file"
+    )
     args = parser.parse_args()
 
-    if args.unmount_all:
+    # Cleanup the fstab file
+    if args.cleanup:
+        cleanup()
+    # Unmount all mounts
+    elif args.unmount_all:
         unmount_all()
     else:
         main(args.dry_run)

@@ -43,6 +43,32 @@ class MountingService:
 
         return True
 
+    def cleanup(self) -> bool:
+        """
+        Cleanup the fstab file
+        :return True if the cleanup was successful
+        """
+        LogFacade.info("Cleanup running...")
+        return self.mount_repository.cleanup()
+
+    def unmount_all(self) -> bool:
+        """
+        Unmount all mounts from the system
+        :return True if all mounts were unmounted successfully
+        """
+        LogFacade.info("Unmounting all mounts...")
+        failed_to_umount = self.mount_repository.unmount_all()
+
+        # If at least one mount failed, log the results
+        if failed_to_umount:
+            LogFacade.log_table_error(
+                "Failed to unmount these mounts",
+                ["Mount Path", "Actual Path"],
+                [[mount.mount_path, mount.actual_path] for mount in failed_to_umount])
+
+        # Return status (at least once failed mount is a failure)
+        return len(failed_to_umount) == 0
+
     def _fetch_mount_data(self):
         """
         Fetch desired and current mounts from the repository.
@@ -94,24 +120,6 @@ class MountingService:
             ["Mount Path", "Actual Path"],
             [[mount.mount_path, mount.actual_path] for mount in mounts]
         )
-
-    def unmount_all(self) -> bool:
-        """
-        Unmount all mounts from the system
-        :return True if all mounts were unmounted successfully
-        """
-        LogFacade.info("Unmounting all mounts")
-        failed_to_umount = self.mount_repository.unmount_all()
-
-        # If at least one mount failed, log the results
-        if failed_to_umount:
-            LogFacade.log_table_error(
-                "Failed to unmount these mounts",
-                ["Mount Path", "Actual Path"],
-                [[mount.mount_path, mount.actual_path] for mount in failed_to_umount])
-
-        # Return status (at least once failed mount is a failure)
-        return len(failed_to_umount) == 0
 
     def _mount(self, mount: Mount) -> bool:
         """

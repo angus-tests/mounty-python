@@ -59,6 +59,11 @@ class MountRepositoryInterface(ABC):
         """
         pass
 
+    def cleanup(self):
+        """
+        Cleanup the system
+        """
+
 
 class MountRepository(MountRepositoryInterface):
     """
@@ -183,6 +188,12 @@ class MountRepository(MountRepositoryInterface):
                 LogFacade.error(f"Failed to unmount {mount.mount_path}: {e}")
 
         return failed_to_unmount
+
+    def cleanup(self):
+        """
+        Cleanup the system
+        """
+        pass
 
     def _perform_unmount(self, mount_path: str):
         """
