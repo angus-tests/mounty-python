@@ -11,24 +11,6 @@ from app.repositories.mount_config_repository import MountConfigRepository
 from app.repositories.mount_repository import MountRepository
 from app.util.config import ConfigManager
 
-
-def setup_mount_config_repo(system_mounts: list[Mount] = None,
-                            remove_failures: list[Mount] = None,
-                            is_mounted: bool = True):
-
-    """
-    Helper method to set up a mock repository
-    :param system_mounts - Optionally specify fake system mount info this mock should return
-    :param remove_failures - Optionally specify a list of mounts that the repo failed to remove from the system
-    :param is_mounted - Optionally specify if a mount is mounted
-    """
-    mock_config_repository = MagicMock(spec=MountConfigRepository)
-    mock_config_repository.get_all_system_mounts.return_value = system_mounts or []
-    mock_config_repository.remove_mounts.return_value = remove_failures or []
-    mock_config_repository.is_mounted.return_value = is_mounted
-    return mock_config_repository
-
-
 class TestHelper:
 
     default_config_values = {
@@ -37,24 +19,32 @@ class TestHelper:
         "CIFS_FILE_LOCATION": "/etc/.cifs",
         "LINUX_SSH_LOCATION": "/root/.ssh/id_rsa_linux",
         "LINUX_SSH_USER": "dave",
-        "CIFS_DOMAIN": "ONS"
+        "CIFS_DOMAIN": "ONS",
+        "DESIRED_MOUNTS_FILE_PATH": "mounts.json",
     }
 
     @staticmethod
     def setup_mock_config_repo(
         system_mounts: list[Mount] = None,
+        mounts_content: str = "{}",
         remove_failures: list[Mount] = None,
-        is_mounted: bool = True
+        is_mounted: bool = True,
+        config_values: dict = None,
     ):
         """
         Sets up the common mocked FSTAB repository and configuration manager.
         :param system_mounts: Optionally specify fake system mount info this mock should return
+        :param mounts_content: Optionally specify the content of the desired mounts file
         :param remove_failures: Optionally specify a list of mounts that the repo failed to remove from the system
         :param is_mounted: Optionally specify if a mount is mounted
+        :param config_values: Optionally specify a dictionary of config values to use
         """
 
+        # Use default config values if none are provided
+        config_values = config_values or TestHelper.default_config_values
+
         # Create the mock config repository
-        mock_config_repository = setup_mount_config_repo(
+        mock_config_repository = TestHelper.setup_mount_config_repo(
             system_mounts=system_mounts or [],
             remove_failures=remove_failures or [],
             is_mounted=is_mounted
@@ -69,12 +59,36 @@ class TestHelper:
         # Create a mock file system repository
         mock_fs_repository = MagicMock(spec=FileSystemRepositoryInterface)
 
+        def read_file_side_effect(file_path):
+            if file_path == config_values["DESIRED_MOUNTS_FILE_PATH"]:
+                return mounts_content
+            return ""
+
+        # Set the side effect for the read_file method
+        mock_fs_repository.read_file.side_effect = read_file_side_effect
+
         # Create a MountRepository
         return MountRepository(
             mock_config_manager,
             mock_config_repository,
             mock_fs_repository
         )
+
+    @staticmethod
+    def setup_mount_config_repo(system_mounts: list[Mount] = None,
+                                remove_failures: list[Mount] = None,
+                                is_mounted: bool = True):
+        """
+        Helper method to set up a mock config repository
+        :param system_mounts - Optionally specify fake system mount info this mock should return
+        :param remove_failures - Optionally specify a list of mounts that the repo failed to remove from the system
+        :param is_mounted - Optionally specify if a mount is mounted
+        """
+        mock_config_repository = MagicMock(spec=MountConfigRepository)
+        mock_config_repository.get_all_system_mounts.return_value = system_mounts or []
+        mock_config_repository.remove_mounts.return_value = remove_failures or []
+        mock_config_repository.is_mounted.return_value = is_mounted
+        return mock_config_repository
 
 
 class TestGetCurrentMounts(unittest.TestCase):
@@ -126,35 +140,22 @@ class TestGetCurrentMounts(unittest.TestCase):
 
 
 class TestGetDesiredMounts(unittest.TestCase):
-    def setUp(self):
-        """
-        Common setup for all tests.
-        """
-        self.mock_config_repository = setup_mount_config_repo()
-        self.mock_config_manager = MagicMock(spec=ConfigManager)
-        self.config_values = {
-            "LINUX_SSH_USER": "dave",
-            "DESIRED_MOUNTS_FILE_PATH": "mounts.json",
-        }
-        self.mock_config_manager.get_config.side_effect = lambda key: self.config_values[key]
-        self.mount_repo = MountRepository(self.mock_config_manager, self.mock_config_repository)
 
-    @patch("builtins.open", new_callable=mock_open, read_data="[]")
-    def test_get_desired_mounts_empty(self, _mock_json_open):
+    def test_get_desired_mounts_empty(self):
         """
         Simulate an empty desired mounts file.
         """
-        current_mounts = self.mount_repo.get_desired_mounts()
+        mount_repo = TestHelper.setup_mock_config_repo()
+        current_mounts = mount_repo.get_desired_mounts()
         self.assertListEqual([], current_mounts)
 
-    @patch("builtins.open", new_callable=mock_open)
-    def test_get_desired_mounts_with_content(self, mock_json_open):
+    def test_get_desired_mounts_with_content(self):
         """
         Simulate a desired mounts file with a few mounts.
         """
 
         # Mock the file to return some JSON
-        mock_json_open.return_value.read.return_value = json.dumps(
+        json_content = json.dumps(
             [
                 {
                     "mount_path": "/shares/outputs/example_data",
@@ -167,6 +168,10 @@ class TestGetDesiredMounts(unittest.TestCase):
                     "mount_type": "fuse.sshfs",
                 },
             ]
+        )
+
+        mount_repo = TestHelper.setup_mock_config_repo(
+            mounts_content=json_content
         )
 
         expected = [
@@ -182,16 +187,15 @@ class TestGetDesiredMounts(unittest.TestCase):
             ),
         ]
 
-        current_mounts = self.mount_repo.get_desired_mounts()
+        current_mounts = mount_repo.get_desired_mounts()
         self.assertListEqual(expected, current_mounts)
 
-    @patch("builtins.open", new_callable=mock_open)
-    def test_get_desired_mounts_linux(self, mock_json_open):
+    def test_get_desired_mounts_linux(self):
         """
         Check that when we get desired mounts, the Linux mounts
         will get populated with the SSH user.
         """
-        mock_json_open.return_value.read.return_value = json.dumps(
+        json_content = json.dumps(
             [
                 {
                     "mount_path": "/shares/linux/inputs",
@@ -204,6 +208,10 @@ class TestGetDesiredMounts(unittest.TestCase):
                     "mount_type": "fuse.sshfs",
                 },
             ]
+        )
+
+        mount_repo = TestHelper.setup_mock_config_repo(
+            mounts_content=json_content
         )
 
         expected = [
@@ -219,7 +227,7 @@ class TestGetDesiredMounts(unittest.TestCase):
             ),
         ]
 
-        current_mounts = self.mount_repo.get_desired_mounts()
+        current_mounts = mount_repo.get_desired_mounts()
         self.assertListEqual(expected, current_mounts)
 
 
