@@ -6,25 +6,28 @@ App to manage mounts on a VM
 
 This app requires a `.env` file in the root directory with the following variables:
 
-| Key                 | Description                                                                 |
-|---------------------|-----------------------------------------------------------------------------|
-| DESIRED_MOUNTS_PATH | The path to `mounts.json` or another file that specifies the desired mounts |
-| CIFS_FILE_LOCATION  | The path to the file that contains the credentials for the CIFS mounts      |
-| LINUX_SSH_USER      | The user to use for SSH connections to the Linux shares                     |
-| LINUX_SSH_LOCATION  | The path to the SSH key for the Linux shares                                |
+| Key                      | Description                                                                 |
+|--------------------------|-----------------------------------------------------------------------------|
+| DESIRED_MOUNTS_FILE_PATH | The path to `mounts.json` or another file that specifies the desired mounts |
+| CIFS_FILE_LOCATION       | The path to the file that contains the credentials for the CIFS mounts      |
+| LINUX_SSH_USER           | The user to use for SSH connections to the Linux shares                     |
+| LINUX_SSH_LOCATION       | The path to the SSH key for the Linux shares                                |
+
 
 ## Running the script
 
-There are two main ways to run the script:
+There are three main commands that can be run:
 
-1. Run the `run.py` file...
+- `python3 run.py --dry-run` - Simulates the mounting script without actually mounting anything
+- `python3 run.py --unmount-all` - Remove all the manually mounted shares (including the mount points)
+- `python3 run.py --cleanup` - Will cleanup the FSTAB file (remove duplicates and any stale mounts)
+- `python3 run.py` - Mount the shares specified in the `mounts.json` file
 
-```bash
-python run.py
-```
+### Running from bash
 
-2. Run the `run.sh` file...
+The scripts can also be run from a bash script, which will also setup a VIRTUAL environment and install the required dependencies:
 
-```bash
-./run.sh
-```
+- `sh run.sh --dry-run`
+- `sh run.sh --unmount-all`
+- `sh run.sh --cleanup`
+- `sh run.sh`
