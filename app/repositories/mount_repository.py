@@ -147,6 +147,10 @@ class MountRepository(MountRepositoryInterface):
         Add a mount to the system
         """
 
+        # First check if the mount is not a mount and if it's got files in
+        if not self.mount_config_repository.is_mounted(mount.mount_path) and not self.fs_repository.directory_empty(mount.mount_path):
+            raise MountException(f"Mount point {mount.mount_path} is not empty, please remove the contents before mounting")
+
         # Create the mount point
         self._add_mount_point(mount.mount_path)
 
