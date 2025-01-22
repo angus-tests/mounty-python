@@ -316,6 +316,21 @@ class TestMount(unittest.TestCase):
         with self.assertRaises(MountException):
             self.mount_repo.mount(self.test_mount)
 
+    @patch("subprocess.run")
+    def test_mount_with_contents_in_folder(self, mock_subprocess_run):
+        """
+        Simulates a mount operation that fails because the mount point has contents.
+        """
+
+        # Ensure the mount operation returns 0
+        mock_subprocess_run.return_value = MagicMock(returncode=0)
+
+        # Mock the directory_empty method to return False
+        self.mount_repo.fs_repository.directory_empty.return_value = False
+
+        with self.assertRaises(MountException):
+            self.mount_repo.mount(self.test_mount)
+
 
 class TestUnmount(unittest.TestCase):
 
