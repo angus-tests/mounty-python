@@ -7,7 +7,7 @@
 
   {
     "mount_path": "/shares/inputs/another_example",
-    "actual_path": "example:/abc/live/location/example",
+    "actual_path": "user@example:/abc/live/location/example",
     "mount_type": "fuse.sshfs"
   }
 
