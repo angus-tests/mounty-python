@@ -96,4 +96,6 @@ class FileSystemRepository(FileSystemRepositoryInterface):
         """
         Return True if the directory is empty
         """
-        return not os.listdir(directory_path)
+        if self.directory_exists(directory_path):
+            return not os.listdir(directory_path)
+        return True

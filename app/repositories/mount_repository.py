@@ -166,9 +166,6 @@ class MountRepository(MountRepositoryInterface):
         :param mount_path: The local path of the mount to unmount
         """
 
-        # If the mount point exists, check if it is empty
-        self._validate_mount_point(mount_path)
-
         # Remove the mount information from the config
         self.mount_config_repository.remove_mount_information(mount_path)
 
@@ -176,7 +173,7 @@ class MountRepository(MountRepositoryInterface):
         self._perform_unmount(mount_path)
 
         # Remove the mount point
-        self._remove_mount_point(mount_path, check_empty=False)
+        self._remove_mount_point(mount_path)
 
     def unmount_all(self) -> list[Mount]:
         """
@@ -194,9 +191,8 @@ class MountRepository(MountRepositoryInterface):
 
         for mount in all_mounts:
             try:
-                self._validate_mount_point(mount.mount_path)
                 self._perform_unmount(mount.mount_path)
-                self._remove_mount_point(mount.mount_path, check_empty=False)
+                self._remove_mount_point(mount.mount_path)
             except UnmountException as e:
                 failed_to_unmount.append(mount)
                 LogFacade.error(f"Failed to unmount {mount.mount_path}: {e}")
@@ -242,14 +238,12 @@ class MountRepository(MountRepositoryInterface):
         if mount_result.returncode != 0:
             raise MountException(mount_result.stderr)
 
-    def _remove_mount_point(self, mount_path: str, check_empty=True):
+    def _remove_mount_point(self, mount_path: str):
         """
         Remove the mount point directory.
         :param mount_path: The path to remove
         :param check_empty: Check if the mount point is empty before removing it
         """
-        if check_empty:
-            self._validate_mount_point(mount_path)
         try:
             self.fs_repository.remove_directory(mount_path)
         except Exception as e:

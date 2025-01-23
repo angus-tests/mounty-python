@@ -386,21 +386,6 @@ class TestUnmount(unittest.TestCase):
         with self.assertRaises(UnmountException):
             self.mount_repo.unmount("/shares/example")
 
-    @patch("subprocess.run")
-    def test_unmount_with_contents_in_mount_point(self, mock_subprocess_run):
-        """
-        Simulates an unmount operation that fails because the mount point has contents.
-        """
-
-        # Ensure the subprocess.run returns 0
-        mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-        # Mock the is_directory_empty method to return False
-        self.mount_repo.fs_repository.directory_empty.return_value = False
-
-        with self.assertRaises(UnmountException):
-            self.mount_repo.unmount("/shares/example")
-
 
 class TestUnmountAll(unittest.TestCase):
 
