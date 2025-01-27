@@ -1,5 +1,5 @@
 from app.facades.log_facade import LogFacade
-from app.interfaces.file_sytem_repository import FileSystemRepositoryInterface
+from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
 from app.util.config import ConfigManager
 
 

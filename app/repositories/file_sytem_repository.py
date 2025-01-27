@@ -1,7 +1,7 @@
 import os
 import shutil
 
-from app.interfaces.file_sytem_repository import FileSystemRepositoryInterface
+from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
 
 
 class FileSystemRepository(FileSystemRepositoryInterface):

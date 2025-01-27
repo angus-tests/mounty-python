@@ -3,9 +3,9 @@ from pyfstab import Fstab, Entry
 from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
 from app.factories.mount_factory import MountFactory
-from app.interfaces.mount_config_repository import MountConfigRepository
+from app.interfaces.mount_config_repository_interface import MountConfigRepository
 from app.models.mount import Mount
-from app.interfaces.file_sytem_repository import FileSystemRepositoryInterface
+from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
 from app.util.config import ConfigManager
 
 

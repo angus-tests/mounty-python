@@ -7,10 +7,10 @@ from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
 from app.factories.mount_factory import MountFactory
-from app.interfaces.mount_repository import MountRepositoryInterface
+from app.interfaces.mount_repository_interface import MountRepositoryInterface
 from app.models.mount import Mount
-from app.interfaces.file_sytem_repository import FileSystemRepositoryInterface
-from app.interfaces.mount_config_repository import MountConfigRepository
+from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
+from app.interfaces.mount_config_repository_interface import MountConfigRepository
 from app.util.config import ConfigManager
 
 
