@@ -5,6 +5,9 @@ from app.models.mount import Mount
 
 
 class MountFactory:
+    """
+    A class for quickly creating Mount objects
+    """
 
     @staticmethod
     def create_from_fstab_entry(entry: Entry) -> Mount:
