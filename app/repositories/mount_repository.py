@@ -1,6 +1,5 @@
 import json
 import subprocess
-from abc import ABC, abstractmethod
 
 from app.enums.enums import MountType
 from app.exceptions.cleanup_exception import CleanupException
@@ -8,61 +7,11 @@ from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
 from app.factories.mount_factory import MountFactory
+from app.interfaces.mount_repository import MountRepositoryInterface
 from app.models.mount import Mount
-from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
-from app.repositories.mount_config_repository import MountConfigRepository
+from app.interfaces.file_sytem_repository import FileSystemRepositoryInterface
+from app.interfaces.mount_config_repository import MountConfigRepository
 from app.util.config import ConfigManager
-
-
-class MountRepositoryInterface(ABC):
-    """
-    Interface for a mount repository, which is responsible for
-    providing the application with mounts to work with
-    """
-
-    @abstractmethod
-    def get_desired_mounts(self) -> list[Mount]:
-        """Fetch a list of mounts we want on the system"""
-        pass
-
-    @abstractmethod
-    def get_current_mounts(self) -> list[Mount]:
-        """Fetch a list of mounts currently on the system"""
-        pass
-
-    @abstractmethod
-    def get_orphan_mounts(self) -> list[Mount]:
-        """Fetch a list of mounts that are not present in config but are mounted on the system"""
-        pass
-
-    @abstractmethod
-    def mount(self, mount: Mount):
-        """
-        mount a mount to the system
-        :param mount: the mount to mount on the system
-        """
-        pass
-
-    @abstractmethod
-    def unmount(self, mount_path: str):
-        """
-        unmount a mount from the system
-        :param mount_path: the path of the mount to unmount on the system
-        """
-        pass
-
-    @abstractmethod
-    def unmount_all(self) -> list[Mount]:
-        """
-        unmount all mounts from the system
-        :return A list of mounts that failed to unmount
-        """
-        pass
-
-    def cleanup(self):
-        """
-        Cleanup the system
-        """
 
 
 class MountRepository(MountRepositoryInterface):

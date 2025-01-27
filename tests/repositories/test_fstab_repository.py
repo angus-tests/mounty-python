@@ -5,8 +5,8 @@ from unittest.mock import MagicMock, mock_open, patch
 from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
 from app.factories.mount_factory import FakeMountFactory
-from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
-from app.repositories.mount_config_repository import FstabRepository
+from app.interfaces.file_sytem_repository import FileSystemRepositoryInterface
+from app.repositories.fstab_repository import FstabRepository
 from app.util.config import ConfigManager
 
 

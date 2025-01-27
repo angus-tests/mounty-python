@@ -7,8 +7,8 @@ from app.exceptions.cleanup_exception import CleanupException
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.models.mount import Mount
-from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
-from app.repositories.mount_config_repository import MountConfigRepository
+from app.interfaces.file_sytem_repository import FileSystemRepositoryInterface
+from app.interfaces.mount_config_repository import MountConfigRepository
 from app.repositories.mount_repository import MountRepository
 from app.util.config import ConfigManager
 

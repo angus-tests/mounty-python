@@ -2,7 +2,7 @@ from typing import Callable
 
 from app.facades.log_facade import LogFacade
 from app.repositories.file_sytem_repository import FileSystemRepository
-from app.repositories.mount_config_repository import FstabRepository
+from app.repositories.fstab_repository import FstabRepository
 from app.repositories.mount_repository import MountRepository
 from app.services.mounting_service import MountingService
 from app.services.validation_service import ValidationService
