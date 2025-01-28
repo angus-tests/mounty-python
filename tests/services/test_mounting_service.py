@@ -257,7 +257,7 @@ class TestMountingServiceRun(unittest.TestCase):
 
 
 class TestMountingServiceUnmountAll(unittest.TestCase):
-    
+
     def test_unmount_all(self):
         """
         This test simulates a mounts.json file with two mounts in it

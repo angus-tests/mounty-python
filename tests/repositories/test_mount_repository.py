@@ -484,6 +484,5 @@ class TestCleanup(unittest.TestCase):
             self.mount_repo.cleanup()
 
 
-
 if __name__ == '__main__':
     unittest.main()

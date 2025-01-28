@@ -2,10 +2,6 @@ from abc import ABC, abstractmethod
 
 
 class FileSystemRepositoryInterface(ABC):
-    """
-    Interface for a file system repository, which is responsible for
-    providing the application with file system operations
-    """
 
     @abstractmethod
     def read_file(self, file_path: str) -> str:

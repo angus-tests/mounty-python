@@ -49,4 +49,3 @@ class ConfigManager:
         missing_keys = [key for key in required_keys if not self.get_config(key)]
         if missing_keys:
             raise ConfigException(f"Missing required configuration variables: {missing_keys}")
-

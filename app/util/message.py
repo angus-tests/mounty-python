@@ -47,4 +47,3 @@ UNMOUNT_ALL = """
             Unmount all the managed mounts from the system                                
 ------------------------------------------------------------------------
 """
-

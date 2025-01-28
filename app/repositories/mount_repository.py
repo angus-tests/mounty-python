@@ -26,9 +26,10 @@ class MountRepository(MountRepositoryInterface):
                  mount_prefix="/shares"):
         """
         :param config_manager: ConfigManager - An instance of the config manager to fetch configuration variables
-        :param mount_config_repository: MountConfigRepository - An instance of the mount config repository to fetch mount information from FSTAB etc
-        :param fs_repository: FileSystemRepositoryInterface - An instance of the file system repository to interact with the file system
-        :param mount_prefix: str - The prefix for the mounts we are interested in
+        :param mount_config_repository: MountConfigRepository - An instance of the mount config repository to fetch
+        mount information from FSTAB etc :param fs_repository: FileSystemRepositoryInterface - An instance of the
+        file system repository to interact with the file system :param mount_prefix: str - The prefix for the mounts
+        we are interested in
         """
         self.config_manager = config_manager
         self.mount_config_repository = mount_config_repository
@@ -88,7 +89,8 @@ class MountRepository(MountRepositoryInterface):
         return [
             mount
             for mount in all_system_mounts
-            if mount.mount_path.startswith(self.mount_prefix) and not self.mount_config_repository.is_mounted(mount.mount_path)
+            if mount.mount_path.startswith(self.mount_prefix) and
+            not self.mount_config_repository.is_mounted(mount.mount_path)
         ]
 
     def mount(self, mount: Mount):
@@ -97,8 +99,10 @@ class MountRepository(MountRepositoryInterface):
         """
 
         # First check if the mount is not a mount and if it's got files in
-        if not self.mount_config_repository.is_mounted(mount.mount_path) and not self.fs_repository.directory_empty(mount.mount_path):
-            raise MountException(f"Mount point {mount.mount_path} is not empty, please remove the contents before mounting")
+        if (not self.mount_config_repository.is_mounted(mount.mount_path)
+                and not self.fs_repository.directory_empty(mount.mount_path)):
+            raise MountException(f"Mount point {mount.mount_path} is not empty, please remove the contents before "
+                                 f"mounting")
 
         # Create the mount point
         self._add_mount_point(mount.mount_path)
@@ -191,7 +195,6 @@ class MountRepository(MountRepositoryInterface):
         """
         Remove the mount point directory.
         :param mount_path: The path to remove
-        :param check_empty: Check if the mount point is empty before removing it
         """
         try:
             self.fs_repository.remove_directory(mount_path)

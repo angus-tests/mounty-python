@@ -106,7 +106,9 @@ class FstabRepository(MountConfigRepository):
         options = self._generate_mount_options(mount)
 
         fstab = self._read_fstab()
-        fstab.entries.append(Entry(sanitized_actual_dir, sanitized_local_dir, str(mount.mount_type.value), options, 0, 0))
+        fstab.entries.append(
+            Entry(sanitized_actual_dir, sanitized_local_dir, str(mount.mount_type.value), options, 0, 0)
+        )
         self._write_fstab(fstab)
 
     def remove_mount_information(self, mount_path: str):

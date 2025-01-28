@@ -23,4 +23,3 @@ class Mount:
         """
         return ((self.mount_path == other.mount_path)
                 and (self.actual_path == other.actual_path and self.mount_type == other.mount_type))
-

@@ -5,9 +5,6 @@ from app.models.mount import Mount
 
 
 class MountFactory:
-    """
-    A class for quickly creating Mount objects
-    """
 
     @staticmethod
     def create_from_fstab_entry(entry: Entry) -> Mount:
@@ -16,5 +13,3 @@ class MountFactory:
     @staticmethod
     def create_from_json(data: dict) -> Mount:
         return Mount(data["mount_path"], data["actual_path"], MountType.from_str(data["mount_type"]))
-
-
