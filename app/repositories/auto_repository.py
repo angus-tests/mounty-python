@@ -1,3 +1,5 @@
+from pyfstab import Fstab
+
 from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
 from app.factories.mount_factory import MountFactory
@@ -5,6 +7,7 @@ from app.interfaces.mount_config_repository_interface import MountConfigReposito
 from app.models.mount import Mount
 from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
 from app.util.config import ConfigManager
+
 
 class AutoRepository(MountConfigRepositoryInterface):
     """
@@ -23,6 +26,24 @@ class AutoRepository(MountConfigRepositoryInterface):
         # Fetch the locations of the auto.master and auto mounts files from the config
         self.auto_master_location = self.config_manager.get_config("AUTO_MASTER_LOCATION")
         self.auto_mounts_location = self.config_manager.get_config("AUTO_MOUNTS_LOCATION")
+        self.proc_mounts_location = self.config_manager.get_config("PROC_MOUNTS_LOCATION")
+
+    def _read_proc_mounts(self) -> Fstab:
+        """
+        Read the contents of the proc mounts file
+        """
+        # TODO this is repeated in FSTAB repo, parent class?
+        return Fstab().read_string(
+            self.fs_repository.read_file(self.proc_mounts_location)
+        )
+
+    def is_mounted(self, mount_path: str) -> bool:
+        proc_mounts = self._read_proc_mounts()
+        return any(entry.dir == mount_path for entry in proc_mounts.entries)
+
+    def remove_mounts(self, mounts: list[Mount]):
+        for mount in mounts:
+            self.remove_mount_information(mount.mount_path)
 
     def _read_auto_master(self) -> list[str]:
         """
