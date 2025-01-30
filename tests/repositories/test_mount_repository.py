@@ -8,7 +8,7 @@ from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.models.mount import Mount
 from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
-from app.interfaces.mount_config_repository_interface import MountConfigRepository
+from app.interfaces.mount_config_repository_interface import MountConfigRepositoryInterface
 from app.repositories.mount_repository import MountRepository
 from app.util.config import ConfigManager
 
@@ -86,7 +86,7 @@ class TestHelper:
         :param remove_failures - Optionally specify a list of mounts that the repo failed to remove from the system
         :param is_mounted - Optionally specify if a mount is mounted
         """
-        mock_config_repository = MagicMock(spec=MountConfigRepository)
+        mock_config_repository = MagicMock(spec=MountConfigRepositoryInterface)
         mock_config_repository.get_all_system_mounts.return_value = system_mounts or []
         mock_config_repository.remove_mounts.return_value = remove_failures or []
         mock_config_repository.is_mounted.return_value = is_mounted

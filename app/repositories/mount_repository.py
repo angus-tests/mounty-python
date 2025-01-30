@@ -10,7 +10,7 @@ from app.factories.mount_factory import MountFactory
 from app.interfaces.mount_repository_interface import MountRepositoryInterface
 from app.models.mount import Mount
 from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
-from app.interfaces.mount_config_repository_interface import MountConfigRepository
+from app.interfaces.mount_config_repository_interface import MountConfigRepositoryInterface
 from app.util.config import ConfigManager
 
 
@@ -21,7 +21,7 @@ class MountRepository(MountRepositoryInterface):
 
     def __init__(self,
                  config_manager: ConfigManager,
-                 mount_config_repository: MountConfigRepository,
+                 mount_config_repository: MountConfigRepositoryInterface,
                  fs_repository: FileSystemRepositoryInterface,
                  mount_prefix="/shares"):
         """

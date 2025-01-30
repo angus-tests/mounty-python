@@ -3,7 +3,7 @@ from abc import ABC, abstractmethod
 from app.models.mount import Mount
 
 
-class MountConfigRepository(ABC):
+class MountConfigRepositoryInterface(ABC):
     """
     Interface for a mount config repository, which is responsible for
     storing persistent mount config / info e.g (FSTAB)

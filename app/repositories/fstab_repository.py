@@ -3,13 +3,13 @@ from pyfstab import Fstab, Entry
 from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
 from app.factories.mount_factory import MountFactory
-from app.interfaces.mount_config_repository_interface import MountConfigRepository
+from app.interfaces.mount_config_repository_interface import MountConfigRepositoryInterface
 from app.models.mount import Mount
 from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
 from app.util.config import ConfigManager
 
 
-class FstabRepository(MountConfigRepository):
+class FstabRepository(MountConfigRepositoryInterface):
     """
     Concrete implementation of a mounting config repository
     for use with the fstab file
