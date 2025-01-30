@@ -5,7 +5,7 @@ from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
 from app.models.mount import Mount
-from app.repositories.mount_repository import MountRepositoryInterface
+from app.interfaces.mount_repository_interface import MountRepositoryInterface
 from app.services.mounting_service import MountingService
 
 
@@ -257,7 +257,7 @@ class TestMountingServiceRun(unittest.TestCase):
 
 
 class TestMountingServiceUnmountAll(unittest.TestCase):
-    
+
     def test_unmount_all(self):
         """
         This test simulates a mounts.json file with two mounts in it

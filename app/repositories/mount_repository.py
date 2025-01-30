@@ -1,6 +1,5 @@
 import json
 import subprocess
-from abc import ABC, abstractmethod
 
 from app.enums.enums import MountType
 from app.exceptions.cleanup_exception import CleanupException
@@ -8,61 +7,11 @@ from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
 from app.factories.mount_factory import MountFactory
+from app.interfaces.mount_repository_interface import MountRepositoryInterface
 from app.models.mount import Mount
-from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
-from app.repositories.mount_config_repository import MountConfigRepository
+from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
+from app.interfaces.mount_config_repository_interface import MountConfigRepositoryInterface
 from app.util.config import ConfigManager
-
-
-class MountRepositoryInterface(ABC):
-    """
-    Interface for a mount repository, which is responsible for
-    providing the application with mounts to work with
-    """
-
-    @abstractmethod
-    def get_desired_mounts(self) -> list[Mount]:
-        """Fetch a list of mounts we want on the system"""
-        pass
-
-    @abstractmethod
-    def get_current_mounts(self) -> list[Mount]:
-        """Fetch a list of mounts currently on the system"""
-        pass
-
-    @abstractmethod
-    def get_orphan_mounts(self) -> list[Mount]:
-        """Fetch a list of mounts that are not present in config but are mounted on the system"""
-        pass
-
-    @abstractmethod
-    def mount(self, mount: Mount):
-        """
-        mount a mount to the system
-        :param mount: the mount to mount on the system
-        """
-        pass
-
-    @abstractmethod
-    def unmount(self, mount_path: str):
-        """
-        unmount a mount from the system
-        :param mount_path: the path of the mount to unmount on the system
-        """
-        pass
-
-    @abstractmethod
-    def unmount_all(self) -> list[Mount]:
-        """
-        unmount all mounts from the system
-        :return A list of mounts that failed to unmount
-        """
-        pass
-
-    def cleanup(self):
-        """
-        Cleanup the system
-        """
 
 
 class MountRepository(MountRepositoryInterface):
@@ -72,14 +21,15 @@ class MountRepository(MountRepositoryInterface):
 
     def __init__(self,
                  config_manager: ConfigManager,
-                 mount_config_repository: MountConfigRepository,
+                 mount_config_repository: MountConfigRepositoryInterface,
                  fs_repository: FileSystemRepositoryInterface,
                  mount_prefix="/shares"):
         """
         :param config_manager: ConfigManager - An instance of the config manager to fetch configuration variables
-        :param mount_config_repository: MountConfigRepository - An instance of the mount config repository to fetch mount information from FSTAB etc
-        :param fs_repository: FileSystemRepositoryInterface - An instance of the file system repository to interact with the file system
-        :param mount_prefix: str - The prefix for the mounts we are interested in
+        :param mount_config_repository: MountConfigRepository - An instance of the mount config repository to fetch
+        mount information from FSTAB etc :param fs_repository: FileSystemRepositoryInterface - An instance of the
+        file system repository to interact with the file system :param mount_prefix: str - The prefix for the mounts
+        we are interested in
         """
         self.config_manager = config_manager
         self.mount_config_repository = mount_config_repository
@@ -139,13 +89,20 @@ class MountRepository(MountRepositoryInterface):
         return [
             mount
             for mount in all_system_mounts
-            if mount.mount_path.startswith(self.mount_prefix) and not self.mount_config_repository.is_mounted(mount.mount_path)
+            if mount.mount_path.startswith(self.mount_prefix) and
+            not self.mount_config_repository.is_mounted(mount.mount_path)
         ]
 
     def mount(self, mount: Mount):
         """
         Add a mount to the system
         """
+
+        # First check if the mount is not a mount and if it's got files in
+        if (not self.mount_config_repository.is_mounted(mount.mount_path)
+                and not self.fs_repository.directory_empty(mount.mount_path)):
+            raise MountException(f"Mount point {mount.mount_path} is not empty, please remove the contents before "
+                                 f"mounting")
 
         # Create the mount point
         self._add_mount_point(mount.mount_path)
@@ -162,9 +119,6 @@ class MountRepository(MountRepositoryInterface):
         :param mount_path: The local path of the mount to unmount
         """
 
-        # If the mount point exists, check if it is empty
-        self._validate_mount_point(mount_path)
-
         # Remove the mount information from the config
         self.mount_config_repository.remove_mount_information(mount_path)
 
@@ -172,7 +126,7 @@ class MountRepository(MountRepositoryInterface):
         self._perform_unmount(mount_path)
 
         # Remove the mount point
-        self._remove_mount_point(mount_path, check_empty=False)
+        self._remove_mount_point(mount_path)
 
     def unmount_all(self) -> list[Mount]:
         """
@@ -190,9 +144,8 @@ class MountRepository(MountRepositoryInterface):
 
         for mount in all_mounts:
             try:
-                self._validate_mount_point(mount.mount_path)
                 self._perform_unmount(mount.mount_path)
-                self._remove_mount_point(mount.mount_path, check_empty=False)
+                self._remove_mount_point(mount.mount_path)
             except UnmountException as e:
                 failed_to_unmount.append(mount)
                 LogFacade.error(f"Failed to unmount {mount.mount_path}: {e}")
@@ -217,13 +170,10 @@ class MountRepository(MountRepositoryInterface):
         """
         if not self.mount_config_repository.is_mounted(mount_path):
             LogFacade.warning(f"Attempted to unmount {mount_path} but it was already unmounted")
-            return True
 
         umount_result = subprocess.run(["sudo", "umount", mount_path], capture_output=True)
         if umount_result.returncode != 0:
             raise UnmountException(umount_result.stderr)
-
-        return True
 
     def _perform_mount(self, mount_path: str):
         """
@@ -232,20 +182,16 @@ class MountRepository(MountRepositoryInterface):
         """
         if self.mount_config_repository.is_mounted(mount_path):
             LogFacade.warning(f"Attempted to mount {mount_path} but it was already mounted")
-            return True
 
         mount_result = subprocess.run(["sudo", "mount", mount_path], capture_output=True)
         if mount_result.returncode != 0:
             raise MountException(mount_result.stderr)
 
-    def _remove_mount_point(self, mount_path: str, check_empty=True):
+    def _remove_mount_point(self, mount_path: str):
         """
         Remove the mount point directory.
         :param mount_path: The path to remove
-        :param check_empty: Check if the mount point is empty before removing it
         """
-        if check_empty:
-            self._validate_mount_point(mount_path)
         try:
             self.fs_repository.remove_directory(mount_path)
         except Exception as e:

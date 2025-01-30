@@ -5,7 +5,7 @@ from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.facades.log_facade import LogFacade
 from app.models.mount import Mount
-from app.repositories.mount_repository import MountRepositoryInterface
+from app.interfaces.mount_repository_interface import MountRepositoryInterface
 
 
 class MountingService:
@@ -83,7 +83,10 @@ class MountingService:
         current_mounts = self.mount_repository.get_current_mounts()
         return desired_mounts, current_mounts
 
-    def _process_mounts(self, action: str, desired_mounts: list[Mount], current_mounts: list[Mount], operation: Callable) -> bool:
+    def _process_mounts(self, action: str,
+                        desired_mounts: list[Mount],
+                        current_mounts: list[Mount],
+                        operation: Callable) -> bool:
         """
         Process mounts for a specific action (add, remove, update) using the provided operation.
         """
@@ -102,7 +105,11 @@ class MountingService:
         # Perform the operation and return the result
         return operation(mounts)
 
-    def _log_mounts(self, action: str, desired_mounts: list[Mount], current_mounts: list[Mount], orphan_mounts=None, custom_message=None):
+    def _log_mounts(self, action: str,
+                    desired_mounts: list[Mount],
+                    current_mounts: list[Mount],
+                    orphan_mounts=None,
+                    custom_message=None):
         """
         Log mount actions (add, remove, update) to provide an overview of planned operations.
         """
@@ -270,7 +277,6 @@ class MountingService:
         A mount is considered to need updating if the mount path is
         the same but the actual path or mount type is different
         """
-
 
         mounts_to_update = []
 

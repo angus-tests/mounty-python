@@ -4,9 +4,9 @@ from unittest.mock import MagicMock, mock_open, patch
 
 from app.enums.enums import MountType
 from app.exceptions.mount_exception import MountException
-from app.factories.mount_factory import FakeMountFactory
-from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
-from app.repositories.mount_config_repository import FstabRepository
+from app.factories.fake_mount_factory import FakeMountFactory
+from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
+from app.repositories.fstab_repository import FstabRepository
 from app.util.config import ConfigManager
 
 
@@ -98,9 +98,11 @@ class TestHelper:
         ssh_user = TestHelper.default_config_values["LINUX_SSH_USER"]
 
         if mount_type == MountType.WINDOWS:
-            return f"{actual_path} {mount_path} cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,gid=5001,auto 0 0"
+            return (f"{actual_path} {mount_path} cifs credentials={cifs_file_location},domain={cifs_domain},uid=1001,"
+                    f"gid=5001,auto 0 0")
         elif mount_type == MountType.LINUX:
-            return f"{ssh_user}@{actual_path} {mount_path} fuse.sshfs IdentityFile={ssh_file_location},uid=1001,gid=5001,auto 0 0"
+            return (f"{ssh_user}@{actual_path} {mount_path} fuse.sshfs IdentityFile={ssh_file_location},uid=1001,"
+                    f"gid=5001,auto 0 0")
 
     @staticmethod
     def windows_fstab_line(actual_path: str, mount_path: str):
@@ -240,7 +242,7 @@ class TestStoreMountInformation(unittest.TestCase):
         # Create our mount
         mount = FakeMountFactory.windows_mount(
             mount_path="/shares/windows2",
-            actual_path=f"/mnt/windows2"
+            actual_path="/mnt/windows2"
         )
 
         # Run the store the mount information method

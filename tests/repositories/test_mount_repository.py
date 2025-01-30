@@ -7,8 +7,8 @@ from app.exceptions.cleanup_exception import CleanupException
 from app.exceptions.mount_exception import MountException
 from app.exceptions.unmount_exception import UnmountException
 from app.models.mount import Mount
-from app.repositories.file_sytem_repository import FileSystemRepositoryInterface
-from app.repositories.mount_config_repository import MountConfigRepository
+from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
+from app.interfaces.mount_config_repository_interface import MountConfigRepositoryInterface
 from app.repositories.mount_repository import MountRepository
 from app.util.config import ConfigManager
 
@@ -86,7 +86,7 @@ class TestHelper:
         :param remove_failures - Optionally specify a list of mounts that the repo failed to remove from the system
         :param is_mounted - Optionally specify if a mount is mounted
         """
-        mock_config_repository = MagicMock(spec=MountConfigRepository)
+        mock_config_repository = MagicMock(spec=MountConfigRepositoryInterface)
         mock_config_repository.get_all_system_mounts.return_value = system_mounts or []
         mock_config_repository.remove_mounts.return_value = remove_failures or []
         mock_config_repository.is_mounted.return_value = is_mounted
@@ -316,6 +316,21 @@ class TestMount(unittest.TestCase):
         with self.assertRaises(MountException):
             self.mount_repo.mount(self.test_mount)
 
+    @patch("subprocess.run")
+    def test_mount_with_contents_in_folder(self, mock_subprocess_run):
+        """
+        Simulates a mount operation that fails because the mount point has contents.
+        """
+
+        # Ensure the mount operation returns 0
+        mock_subprocess_run.return_value = MagicMock(returncode=0)
+
+        # Mock the directory_empty method to return False
+        self.mount_repo.fs_repository.directory_empty.return_value = False
+
+        with self.assertRaises(MountException):
+            self.mount_repo.mount(self.test_mount)
+
 
 class TestUnmount(unittest.TestCase):
 
@@ -367,21 +382,6 @@ class TestUnmount(unittest.TestCase):
 
         # But ensure the remove_directory method raises an exception
         self.mount_repo.fs_repository.remove_directory.side_effect = UnmountException("Failed to remove mount point")
-
-        with self.assertRaises(UnmountException):
-            self.mount_repo.unmount("/shares/example")
-
-    @patch("subprocess.run")
-    def test_unmount_with_contents_in_mount_point(self, mock_subprocess_run):
-        """
-        Simulates an unmount operation that fails because the mount point has contents.
-        """
-
-        # Ensure the subprocess.run returns 0
-        mock_subprocess_run.return_value = MagicMock(returncode=0)
-
-        # Mock the is_directory_empty method to return False
-        self.mount_repo.fs_repository.directory_empty.return_value = False
 
         with self.assertRaises(UnmountException):
             self.mount_repo.unmount("/shares/example")
@@ -482,7 +482,6 @@ class TestCleanup(unittest.TestCase):
 
         with self.assertRaises(CleanupException):
             self.mount_repo.cleanup()
-
 
 
 if __name__ == '__main__':

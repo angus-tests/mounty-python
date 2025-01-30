@@ -121,4 +121,3 @@ class LogFacade:
 
         # Add a title to the table
         return f"\n\n{title}\n{'=' * len(title)}\n{formatted_table}\n"
-
