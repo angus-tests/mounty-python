@@ -170,13 +170,10 @@ class MountRepository(MountRepositoryInterface):
         """
         if not self.mount_config_repository.is_mounted(mount_path):
             LogFacade.warning(f"Attempted to unmount {mount_path} but it was already unmounted")
-            return True
 
         umount_result = subprocess.run(["sudo", "umount", mount_path], capture_output=True)
         if umount_result.returncode != 0:
             raise UnmountException(umount_result.stderr)
-
-        return True
 
     def _perform_mount(self, mount_path: str):
         """
@@ -185,7 +182,6 @@ class MountRepository(MountRepositoryInterface):
         """
         if self.mount_config_repository.is_mounted(mount_path):
             LogFacade.warning(f"Attempted to mount {mount_path} but it was already mounted")
-            return True
 
         mount_result = subprocess.run(["sudo", "mount", mount_path], capture_output=True)
         if mount_result.returncode != 0:
