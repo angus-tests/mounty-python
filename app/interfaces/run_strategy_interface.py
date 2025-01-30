@@ -1,12 +1,22 @@
 
 from abc import ABC
 
+from app.interfaces.file_sytem_repository_interface import FileSystemRepositoryInterface
+from app.util.config import ConfigManager
+
 
 class RunStrategyInterface(ABC):
     """
     Interface for run strategies, which are responsible for
     executing the application logic, e.g main, unmount_all, etc.
     """
+
+    def validate(self, config_manager: ConfigManager, fs_repository: FileSystemRepositoryInterface) -> bool:
+        """
+        Ensure the current environment is setup correctly
+        to run the methods in this strategy
+        """
+        raise NotImplementedError
 
     def main(self):
         """
