@@ -11,7 +11,7 @@ class RunStrategyInterface(ABC):
     executing the application logic, e.g main, unmount_all, etc.
     """
 
-    def validate(self, config_manager: ConfigManager, fs_repository: FileSystemRepositoryInterface) -> bool:
+    def validate(self):
         """
         Ensure the current environment is setup correctly
         to run the methods in this strategy
